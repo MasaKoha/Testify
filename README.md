@@ -61,4 +61,4 @@ Unity プロジェクトに入れると、AI はメールボックス（ファ�
 
 - テスト: `TestProject/` を Unity で開き、Test Runner の EditMode を実行（このパッケージを `file:../../` で参照している）
 - 規約と作業手順は [CLAUDE.md](CLAUDE.md)
-- ライセンスは未設定（利用者が決める）
+- ライセンス: [MIT](LICENSE)
