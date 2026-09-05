@@ -25,7 +25,7 @@ AI エージェント（Claude Code / Codex）が Unity ゲームを動かして
 
 ## コーディング規約
 
-`~/.claude/CodingPrinciples.md` と `~/.claude/UnityCSharpCoding.md` に従う。要点:
+`~/.claude/rules/coding-principles.md` と `~/.claude/rules/unity-csharp.md` に従う。要点:
 - コメント・`<summary>` は日本語。public / internal の型とメンバーに `<summary>` 必須
 - 省略名禁止、ブレース省略禁止、4 段以上のネスト禁止、マジックナンバーは定数化、LINQ クエリ構文禁止
 - What コメントではなく Why を書く
