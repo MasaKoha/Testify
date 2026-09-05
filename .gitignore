@@ -1,0 +1,17 @@
+# Unity のテスト用プロジェクト（生成物は入れない）
+TestProject/Library/
+TestProject/Temp/
+TestProject/Logs/
+TestProject/obj/
+TestProject/UserSettings/
+TestProject/*.csproj
+TestProject/*.sln
+TestProject/DebugOutput/
+TestProject/.vs/
+TestProject/.idea/
+
+# ツールの成果物
+DebugOutput/
+__pycache__/
+*.pyc
+.DS_Store

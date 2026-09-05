@@ -1,0 +1,11 @@
+{
+  "name": "com.pisuke.testify",
+  "version": "0.2.0",
+  "displayName": "Testify",
+  "description": "AI エージェント（Claude / Codex）が Unity のゲームを実際に動かし、観測し、検証するためのツール群。ゲーム本体のライブラリに依存しない。",
+  "unity": "6000.0",
+  "author": {
+    "name": "MasaKoha"
+  },
+  "keywords": ["ai", "qa", "playtest", "automation", "unity"]
+}
