@@ -25,7 +25,7 @@ Unity プロジェクトに入れると、AI はメールボックス（ファ�
 
 1. Unity プロジェクトへ導入（`Packages/manifest.json`）:
    ```json
-   "com.pisuke.testify": "https://github.com/MasaKoha/testify.git"
+   "com.pisuke.testify": "https://github.com/MasaKoha/Testify.git"
    ```
    Unity 公式 CLI（`com.unity.pipeline`）を入れると `unity command ai_*` からも叩ける（任意）。
 2. Play を開始する前に、プロジェクト直下に `DebugOutput/agent-mailbox/.enabled` を置く（Python クライアントが自動で置く）。Play に入ると Unity 内蔵のメールボックスサーバが起動する

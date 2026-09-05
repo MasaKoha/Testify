@@ -9,7 +9,7 @@
 ```json
 {
   "dependencies": {
-    "com.pisuke.testify": "https://github.com/MasaKoha/testify.git",
+    "com.pisuke.testify": "https://github.com/MasaKoha/Testify.git",
     "com.unity.inputsystem": "1.14.0"
   }
 }

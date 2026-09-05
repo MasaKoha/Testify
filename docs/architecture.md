@@ -69,7 +69,7 @@
 
 ```bash
 rsync -a --delete --exclude TestProject --exclude docs --exclude .git --exclude .gitignore --exclude CLAUDE.md --exclude AGENTS.md --exclude README.md --exclude LICENSE \
-  /Users/masakoha/GitHub/pisuke-root/testify/ \
+  /Users/masakoha/GitHub/pisuke-root/Testify/ \
   /Users/masakoha/GitHub/pisuke-root/karakuri/karakuri-client/Assets/Testify/
 ```
 
