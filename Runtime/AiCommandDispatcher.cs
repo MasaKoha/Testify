@@ -5,7 +5,7 @@ using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>CLI とメールボックスの操作実装を一箇所に集約します。</summary>
     public static class AiCommandDispatcher

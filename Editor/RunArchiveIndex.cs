@@ -1,6 +1,6 @@
 using System;
 
-namespace UniLab.AI.Editor
+namespace Testify.Editor
 {
     /// <summary>
     /// ギャラリー側がディレクトリ総走査なしでラン一覧を描画できるよう、要約済みの索引を固定化する。

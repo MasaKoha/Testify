@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using static UniLab.AI.InputOverlayVisualPrimitives;
+using static Testify.InputOverlayVisualPrimitives;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>ゲームパッド・キーボード・ポインタの図とハイライトを更新します。</summary>
     internal sealed class InputOverlayRenderer

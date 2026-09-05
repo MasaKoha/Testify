@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 性能レポートの主要指標だけを別型に切り出し、一覧表示が詳細 JSON の構造へ引きずられないようにする。

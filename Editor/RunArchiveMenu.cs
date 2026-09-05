@@ -1,7 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace UniLab.AI.Editor
+namespace Testify.Editor
 {
     /// <summary>
     /// RunArchive の生成と索引再構築をメニュー化し、外部自動化なしでも同じ運用を再現できるようにする。

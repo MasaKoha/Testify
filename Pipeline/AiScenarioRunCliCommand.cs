@@ -1,9 +1,9 @@
-#if UNILAB_AI_PIPELINE
-using UniLab.AI;
+#if TESTIFY_PIPELINE
+using Testify;
 using Unity.Pipeline.Commands;
 using UnityEngine;
 
-namespace UniLab.AI.Pipeline
+namespace Testify.Pipeline
 {
     /// <summary>
     /// シナリオ JSON の起動を Unity 公式 CLI へ公開します。

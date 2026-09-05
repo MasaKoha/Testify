@@ -4,7 +4,7 @@ using System.IO;
 using System.Text;
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>同一ディレクトリ内の rename を境界として要求・応答を公開します。</summary>
     public static class AiMailboxFiles

@@ -4,7 +4,7 @@ using System.Globalization;
 using System.IO;
 using UnityEngine;
 
-namespace UniLab.AI.Editor
+namespace Testify.Editor
 {
     /// <summary>
     /// 見た目の崩れを構造差分ではなく画像差分で拾い、人の目視確認を PR 差分へ置き換える。

@@ -4,7 +4,7 @@ using System.IO;
 using Unity.Collections;
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// Unity のミックス後音声を WAV ファイルへ逐次書き出す録音器です。

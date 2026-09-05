@@ -1,6 +1,6 @@
 using System;
 
-namespace UniLab.AI.Editor
+namespace Testify.Editor
 {
     /// <summary>
     /// capture ごとの判定根拠を残し、差分画像を見る前に失敗理由を機械読解できるようにする。

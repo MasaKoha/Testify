@@ -5,7 +5,7 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// シナリオステップから実行対象・待機アンカー・表示用ラベルを読み取ります。

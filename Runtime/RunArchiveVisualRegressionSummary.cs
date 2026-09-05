@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 視覚回帰の判定件数だけを要約し、差分画像を開かなくてもラン一覧で異常量を判断できるようにする。

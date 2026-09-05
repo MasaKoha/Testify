@@ -1,7 +1,7 @@
 using System;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 録画中の特定フレームに意味ラベルを結び付けます。

@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>入力 API の差を吸収し、オーバーレイへ押下集合を渡します。</summary>
     internal sealed class InputOverlayInputSystemSource

@@ -5,7 +5,7 @@ using System.IO;
 using System.Text;
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>ファイルのフラッシュ時点に依存せず、直近の Unity ログを行単位で保持します。</summary>
     internal sealed class AiConsoleLog : IDisposable

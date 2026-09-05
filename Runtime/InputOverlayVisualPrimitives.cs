@@ -3,7 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>機器描画と履歴帯に共通する UI 生成を保持します。</summary>
     internal static class InputOverlayVisualPrimitives

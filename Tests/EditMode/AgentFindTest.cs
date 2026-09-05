@@ -1,7 +1,7 @@
 #if UNITY_EDITOR
 using NUnit.Framework;
 
-namespace UniLab.AI.Tests
+namespace Testify.Tests
 {
     /// <summary>合成観測で検索と推奨対象指定の契約を検証します。</summary>
     public sealed class AgentFindTest

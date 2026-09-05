@@ -1,7 +1,7 @@
-#if UNILAB_AI_PIPELINE
+#if TESTIFY_PIPELINE
 using System;
 
-namespace UniLab.AI.Pipeline
+namespace Testify.Pipeline
 {
     /// <summary>
     /// `ai_scenario_status` の返却形式です。

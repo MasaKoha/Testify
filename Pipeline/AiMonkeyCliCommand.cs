@@ -1,9 +1,9 @@
-#if UNILAB_AI_PIPELINE
+#if TESTIFY_PIPELINE
 using System.IO;
-using UniLab.AI;
+using Testify;
 using Unity.Pipeline.Commands;
 
-namespace UniLab.AI.Pipeline
+namespace Testify.Pipeline
 {
     /// <summary>
     /// モンキーテスター起動を Unity 公式 CLI へ公開します。

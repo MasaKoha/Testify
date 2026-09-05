@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 04 の入力語彙と submit を 1 手 JSON として受け取り、外部 LLM の出力形式を固定します。
@@ -96,7 +96,7 @@ namespace UniLab.AI
         /// <summary>ピンチ終了距離を JSON から復元するための値です。</summary>
         public float toDistance;
 
-        /// <summary>外部 LLM の判断理由を UniLab.AI 側の行動ログへ残すための文字列です。</summary>
+        /// <summary>外部 LLM の判断理由を Testify 側の行動ログへ残すための文字列です。</summary>
         public string reason;
 
         /// <summary>行動後の落ち着いた観測で検証する事後条件です。</summary>

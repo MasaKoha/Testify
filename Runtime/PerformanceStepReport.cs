@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// どの操作が重かったかを再現なしで特定できるよう、ステップ単位の観測値を固定化する。

@@ -1,7 +1,7 @@
 #if UNITY_EDITOR
 using NUnit.Framework;
 
-namespace UniLab.AI.Tests
+namespace Testify.Tests
 {
     /// <summary>フレーム番号を指定して観測共有の寿命を検証します。</summary>
     public sealed class UiSnapshotCacheTest

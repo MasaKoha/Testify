@@ -27,7 +27,7 @@ MAILBOX_RELATIVE_PATH = Path("DebugOutput") / "agent-mailbox"
 
 def resolve_mailbox(explicit_directory):
     """明示指定、環境変数、親ディレクトリ探索の順で解決する。"""
-    configured = explicit_directory or os.environ.get("UNILAB_AI_MAILBOX")
+    configured = explicit_directory or os.environ.get("TESTIFY_MAILBOX")
     if configured:
         return Path(configured).expanduser().resolve()
     current = Path.cwd().resolve()

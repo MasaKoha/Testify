@@ -2,7 +2,7 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-namespace UniLab.AI.Editor
+namespace Testify.Editor
 {
     /// <summary>
     /// ベースライン比較と受け入れ更新をメニュー化し、外部自動化なしでも同じ運用を再現できるようにする。
@@ -13,8 +13,8 @@ namespace UniLab.AI.Editor
         private const string CompareMenuPath = "UniLab/Debug/Visual Regression/Compare...";
         private const string AcceptAllMenuPath = "UniLab/Debug/Visual Regression/Accept All";
         private const string AcceptOneMenuPath = "UniLab/Debug/Visual Regression/Accept One...";
-        private const string LastCapturesDirectoryKey = "UniLab.AI.VisualRegression.LastCapturesDirectory";
-        private const string LastBaselinesDirectoryKey = "UniLab.AI.VisualRegression.LastBaselinesDirectory";
+        private const string LastCapturesDirectoryKey = "Testify.VisualRegression.LastCapturesDirectory";
+        private const string LastBaselinesDirectoryKey = "Testify.VisualRegression.LastBaselinesDirectory";
         private const string DefaultBaselinesDirectoryName = "Baselines";
 
         static VisualRegressionMenu()
@@ -22,7 +22,7 @@ namespace UniLab.AI.Editor
         }
 
         /// <summary>
-        /// 比較対象ディレクトリを都度選ばせ、利用側リポジトリごとの差異を UniLab.AI 本体へ持ち込まない。
+        /// 比較対象ディレクトリを都度選ばせ、利用側リポジトリごとの差異を Testify 本体へ持ち込まない。
         /// </summary>
         [MenuItem(CompareMenuPath)]
         private static void CompareCaptures()

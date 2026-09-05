@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>入力の押下集合と押下・解放の状態遷移を保持します。</summary>
     internal sealed class InputOverlayInputState

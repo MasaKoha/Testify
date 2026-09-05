@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>同期・非同期の双方で同じ引数検証と省略値を使います。</summary>
     internal sealed class AiCommandContext

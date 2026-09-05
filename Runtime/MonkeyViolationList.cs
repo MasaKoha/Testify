@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// JsonUtility がトップレベル配列を扱いにくいため、違反一覧を包む JSON モデルです。

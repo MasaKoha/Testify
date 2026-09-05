@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using UnityEngine;
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// JSON シナリオを UI 操作・入力語彙・期待値判定の単一入口へ統合し、結果をファイルで返します。

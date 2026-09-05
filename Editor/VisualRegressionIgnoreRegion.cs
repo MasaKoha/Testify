@@ -1,6 +1,6 @@
 using System;
 
-namespace UniLab.AI.Editor
+namespace Testify.Editor
 {
     /// <summary>
     /// capture 単位で無視領域を束ね、差分の理由を画面ごとに分離できるようにする。

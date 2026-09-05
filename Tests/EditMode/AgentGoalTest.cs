@@ -1,7 +1,7 @@
 #if UNITY_EDITOR
 using NUnit.Framework;
 
-namespace UniLab.AI.Tests
+namespace Testify.Tests
 {
     /// <summary>PR4 の観測契約をシーンなしで検証します。</summary>
     public sealed class AgentGoalTest

@@ -12,7 +12,7 @@ using UnityEngine.InputSystem.LowLevel;
 using TouchPhase = UnityEngine.InputSystem.TouchPhase;
 #endif
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 入力記録を固定ステップで戻し、修正前後で同じ入力列を何度でも当てられるようにする再生器です。

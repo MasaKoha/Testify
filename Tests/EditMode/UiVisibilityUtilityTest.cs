@@ -1,7 +1,7 @@
 #if UNITY_EDITOR
 using NUnit.Framework;
 
-namespace UniLab.AI.Tests
+namespace Testify.Tests
 {
     /// <summary>描画やシーンに依存せず可視面積比を検証します。</summary>
     public sealed class UiVisibilityUtilityTest

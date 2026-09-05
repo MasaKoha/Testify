@@ -8,7 +8,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
 #endif
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// UiScenarioStep の入力語彙を InputInjector 呼び出しへ変換して実行します。

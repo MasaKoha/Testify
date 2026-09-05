@@ -1,8 +1,8 @@
-#if UNILAB_AI_PIPELINE
-using UniLab.AI;
+#if TESTIFY_PIPELINE
+using Testify;
 using Unity.Pipeline.Commands;
 
-namespace UniLab.AI.Pipeline
+namespace Testify.Pipeline
 {
     /// <summary>
     /// 直前のシナリオ実行状態を Unity 公式 CLI へ公開します。

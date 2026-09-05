@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// シナリオ実行中の録画・性能計測・入力記録・入力可視化の開始停止をまとめます。

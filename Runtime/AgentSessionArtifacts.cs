@@ -5,7 +5,7 @@ using System.Globalization;
 using System.IO;
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>行動履歴と成果物の保存形式をセッション制御から分離します。</summary>
     internal sealed class AgentSessionArtifacts

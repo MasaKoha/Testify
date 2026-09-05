@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// セッション全体の終了状態を固定 JSON で残し、外部運転手が成功と失敗を同じ形式で扱えるようにします。

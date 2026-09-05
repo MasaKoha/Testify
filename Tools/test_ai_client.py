@@ -73,7 +73,7 @@ class AiClientTest(unittest.TestCase):
 
     def test_explicit_mailbox_precedes_environment(self):
         with tempfile.TemporaryDirectory() as directory:
-            with patch.dict(os.environ, {"UNILAB_AI_MAILBOX": "/unused"}):
+            with patch.dict(os.environ, {"TESTIFY_MAILBOX": "/unused"}):
                 self.assertEqual(CLIENT.resolve_mailbox(directory), Path(directory).resolve())
 
     def test_parent_search_and_project_bootstrap(self):

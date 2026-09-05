@@ -1,7 +1,7 @@
 using System;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 修正後の再生に必要な周辺情報を入力列と分離し、run 単位で再利用できるようにする manifest です。

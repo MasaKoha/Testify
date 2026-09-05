@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// シナリオ実行中のスクリーンショット・監査・結果 JSON をファイルへ保存します。

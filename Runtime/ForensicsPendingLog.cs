@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     internal sealed class ForensicsPendingLog
     {

@@ -1,5 +1,5 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>行動の事後条件を応答へ反映し、行動の受理結果とは分離します。</summary>
     internal static class AgentActExpectation

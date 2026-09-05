@@ -1,6 +1,6 @@
 using System;
 
-namespace UniLab.AI.Editor
+namespace Testify.Editor
 {
     /// <summary>
     /// 1 ランぶんの導線を索引へ切り出し、詳細ファイルを開く前の一覧判断を高速化する。

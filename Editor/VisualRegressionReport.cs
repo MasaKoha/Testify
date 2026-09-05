@@ -1,6 +1,6 @@
 using System;
 
-namespace UniLab.AI.Editor
+namespace Testify.Editor
 {
     /// <summary>
     /// ラン全体の比較結果を 1 ファイルへ集約し、RunArchive などが後処理しやすい形を作る。

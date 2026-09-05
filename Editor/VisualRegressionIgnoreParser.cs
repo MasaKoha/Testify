@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace UniLab.AI.Editor
+namespace Testify.Editor
 {
     /// <summary>
     /// 設計書どおりの `capture名 -> 矩形配列` JSON を保ちつつ、追加依存なしで読み込めるようにする。

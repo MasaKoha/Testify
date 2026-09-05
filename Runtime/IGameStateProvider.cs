@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System.Collections.Generic;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// ゲーム固有の状態を平坦なキー値へ落として受け渡すための入口です。
@@ -11,7 +11,7 @@ namespace UniLab.AI
     {
         /// <summary>
         /// JSON 化しやすい平坦な状態を返します。
-        /// UniLab.AI 側で辞書を直接扱えないため、ここで値域を絞っておく前提です。
+        /// Testify 側で辞書を直接扱えないため、ここで値域を絞っておく前提です。
         /// </summary>
         IReadOnlyDictionary<string, object> GetState();
     }

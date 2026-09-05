@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System.Collections.Generic;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// ゲーム固有のコマンドを文字列名で公開するための入口です。

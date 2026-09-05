@@ -1,6 +1,6 @@
 using System;
 
-namespace UniLab.AI.Editor
+namespace Testify.Editor
 {
     /// <summary>
     /// 失敗ステップの証拠パスだけ差し替えても、元の判定内容を保ったまま再保存できるようにする。

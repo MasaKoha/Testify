@@ -1,6 +1,6 @@
 {
-    "name": "UniLab.AI",
-    "rootNamespace": "UniLab.AI",
+    "name": "Testify",
+    "rootNamespace": "Testify",
     "references": [
         "Unity.TextMeshPro",
         "Unity.InputSystem"

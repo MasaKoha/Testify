@@ -17,7 +17,7 @@
 }
 ```
 
-実行: `scenario.run {"path":"docs/scenarios/tour.json"}`（メールボックス／CLI）か、Editor メニュー `UniLab/AI/Run UI Scenario...`。結果は `DebugOutput/scenario-results/<name>-<日時>/result.json`（`verdict` / `failedSteps` / `warningCount` / ステップごとの `waited` 秒）。
+実行: `scenario.run {"path":"docs/scenarios/tour.json"}`（メールボックス／CLI）か、Editor メニュー `Testify/Run UI Scenario...`。結果は `DebugOutput/scenario-results/<name>-<日時>/result.json`（`verdict` / `failedSteps` / `warningCount` / ステップごとの `waited` 秒）。
 
 ## ステップの語彙
 

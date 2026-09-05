@@ -2,7 +2,7 @@ using System.IO;
 using UnityEngine;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// デバッグ出力先ディレクトリの解決を共通化します。

@@ -3,7 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>単一入力の押下・解放時刻と保持表示の状態を保持します。</summary>
     internal sealed class InputOverlayHeldState

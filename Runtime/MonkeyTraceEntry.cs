@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 1 手ごとの観測結果を JSONL へ残し、クラッシュ直前の操作列を再現できるようにします。
