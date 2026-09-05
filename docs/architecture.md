@@ -45,9 +45,9 @@
 ## 依存の鉄則
 
 1. ゲーム本体のライブラリに依存しない（UniLab / R3 / UniTask / VContainer）。依存は `UnityEngine`・.NET 標準・`Unity.TextMeshPro`・`Unity.InputSystem`
-2. `Pipeline/` は `com.unity.pipeline` が無くてもコンパイルできる（asmdef の `versionDefines` で `UNILAB_AI_PIPELINE`）
+2. `Pipeline/` は `com.unity.pipeline` が無くてもコンパイルできる（asmdef の `versionDefines` で `TESTIFY_PIPELINE`）
 3. 毎フレーム処理（`AiMailboxServer.Update`、オーバーレイ描画）はアロケーションを増やさない。観測時（`UiSnapshot.Capture`）だけ `GetComponent` 可
-4. 名前空間は `UniLab.AI`（利用側互換）。`Debug` という語を名前空間に使わない
+4. 名前空間は `Testify`。`Debug` という語を名前空間に使わない
 
 ## 速さのための設計
 
@@ -65,15 +65,15 @@
 
 ## 利用側への同期
 
-パッケージ参照（git URL）が基本。コピー導入の利用側（karakuri-client の `Assets/UniLab.AI/`）へは:
+パッケージ参照（git URL）が基本。コピー導入の利用側（karakuri-client の `Assets/Testify/`）へは:
 
 ```bash
-rsync -a --delete --exclude TestProject --exclude docs --exclude .git --exclude .gitignore --exclude CLAUDE.md --exclude README.md \
+rsync -a --delete --exclude TestProject --exclude docs --exclude .git --exclude .gitignore --exclude CLAUDE.md --exclude AGENTS.md --exclude README.md --exclude LICENSE \
   /Users/masakoha/GitHub/pisuke-root/testify/ \
-  /Users/masakoha/GitHub/pisuke-root/karakuri/karakuri-client/Assets/UniLab.AI/
+  /Users/masakoha/GitHub/pisuke-root/karakuri/karakuri-client/Assets/Testify/
 ```
 
-変更は Testify 側で PR → マージ → 利用側で同期 PR、の順。利用側で直接 `Assets/UniLab.AI/` を編集しない。
+変更は Testify 側で PR → マージ → 利用側で同期 PR、の順。利用側で直接 `Assets/Testify/` を編集しない。
 
 ## テスト
 

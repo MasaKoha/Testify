@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEngine.InputSystem.LowLevel;
 #endif
 
-namespace UniLab.AI.Tests
+namespace Testify.Tests
 {
     /// <summary>入力送出なしで行動の解釈と反復キーの契約を検証します。</summary>
     public sealed class AgentActionExecutorTest

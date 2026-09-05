@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// ラン全体の健康状態を一目で判断できる値だけを集約し、比較コストを下げる。

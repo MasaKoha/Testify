@@ -1,5 +1,5 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 動画録画の出力結果を表します。

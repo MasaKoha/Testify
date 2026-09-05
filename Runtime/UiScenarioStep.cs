@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// シナリオの 1 ステップ。指定されたフィールドだけが実行される。

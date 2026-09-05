@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// ラン全体の要約を 1 ファイルへ固定し、スマホ閲覧や後続集計が個別成果物を毎回走査しなくて済むようにする。

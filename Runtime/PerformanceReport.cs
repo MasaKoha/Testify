@@ -3,7 +3,7 @@ using System;
 using System.IO;
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 数値化した結果をファイルへ固定し、後続ツールが実行時状態に依存せず再利用できるようにする。

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>JsonUtility が許容する壊れた JSON と省略フィールドを入口で区別します。</summary>
     internal sealed class AiJsonObject

@@ -1,7 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace UniLab.AI.Editor
+namespace Testify.Editor
 {
     /// <summary>
     /// UI スナップショットと入力オーバーレイの手動確認入口です。

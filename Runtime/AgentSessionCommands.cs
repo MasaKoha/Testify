@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// AI ゲートウェイ（AiCommandDispatcher）から文字列だけで呼べる静的入口です。

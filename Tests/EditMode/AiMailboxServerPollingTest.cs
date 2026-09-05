@@ -1,7 +1,7 @@
 #if UNITY_EDITOR
 using NUnit.Framework;
 
-namespace UniLab.AI.Tests
+namespace Testify.Tests
 {
     /// <summary>実時間待機なしで省電力ポーリングの境界を検証します。</summary>
     public sealed class AiMailboxServerPollingTest

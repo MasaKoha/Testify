@@ -1,7 +1,7 @@
 using System;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// フレーム同期で入力を戻せる最小単位として、1 変更を 1 行 JSON で残すための記録です。

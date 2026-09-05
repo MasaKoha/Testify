@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>入力取得と描画・履歴の寿命を結び付ける薄い入口です。</summary>
     public sealed class InputOverlayController : MonoBehaviour

@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// UI 観測で共通になる可視判定・遮蔽判定をまとめます。

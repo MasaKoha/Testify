@@ -1,13 +1,13 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace UniLab.AI.Editor
+namespace Testify.Editor
 {
     /// <summary>Play 中のメールボックスを Editor メニューから操作します。</summary>
     public static class AiMailboxMenu
     {
-        private const string StartMenuPath = "UniLab/AI/Mailbox/Start";
-        private const string StopMenuPath = "UniLab/AI/Mailbox/Stop";
+        private const string StartMenuPath = "Testify/Mailbox/Start";
+        private const string StopMenuPath = "Testify/Mailbox/Stop";
 
         [MenuItem(StartMenuPath)]
         private static void StartMailbox()

@@ -6,7 +6,7 @@ using UnityEngine;
 using Unity.Profiling;
 using UnityEngine.Profiling;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// シナリオの重さを手作業の体感に頼らず比較できるよう、ステップ単位の指標へ揃えて保存する。

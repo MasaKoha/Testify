@@ -1,9 +1,9 @@
-#if UNILAB_AI_PIPELINE
+#if TESTIFY_PIPELINE
 using System;
 using System.IO;
 using UnityEditor;
 
-namespace UniLab.AI.Pipeline
+namespace Testify.Pipeline
 {
     /// <summary>
     /// CLI ラッパ間で共有する最小限の状態と共通処理です。

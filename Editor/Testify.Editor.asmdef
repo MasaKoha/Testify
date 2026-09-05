@@ -1,8 +1,8 @@
 {
-    "name": "UniLab.AI.Editor",
-    "rootNamespace": "UniLab.AI.Editor",
+    "name": "Testify.Editor",
+    "rootNamespace": "Testify.Editor",
     "references": [
-        "UniLab.AI"
+        "Testify"
     ],
     "includePlatforms": [
         "Editor"

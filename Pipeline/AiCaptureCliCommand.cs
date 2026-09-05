@@ -1,8 +1,8 @@
-#if UNILAB_AI_PIPELINE
+#if TESTIFY_PIPELINE
 using Unity.Pipeline.Commands;
 using UnityEngine;
 
-namespace UniLab.AI.Pipeline
+namespace Testify.Pipeline
 {
     /// <summary>画面撮影の即時要求を CLI へ公開します。</summary>
     public static class AiCaptureCliCommand

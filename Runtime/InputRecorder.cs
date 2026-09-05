@@ -11,7 +11,7 @@ using UnityEngine.InputSystem.Controls;
 using UnityEngine.InputSystem.LowLevel;
 #endif
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 再生可能な入力列を DebugOutput/replays 配下へ固定形式で残し、修正後の再現確認を機械処理できるようにする記録器です。

@@ -1,6 +1,6 @@
 using System;
 
-namespace UniLab.AI.Editor
+namespace Testify.Editor
 {
     /// <summary>
     /// シナリオ結果 JSON を再保存可能な形で受け、RunArchive 内で相対パスへ正規化できるようにする。

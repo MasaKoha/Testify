@@ -5,7 +5,7 @@ using System.Globalization;
 using System.IO;
 using UnityEngine;
 
-namespace UniLab.AI.Editor
+namespace Testify.Editor
 {
     /// <summary>
     /// 散在する成果物をラン単位へ再配置し、スマホ閲覧と過去比較がディレクトリ 1 つで完結する状態を作る。

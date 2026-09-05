@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 画面上の 1 要素を表す JSON モデルです。

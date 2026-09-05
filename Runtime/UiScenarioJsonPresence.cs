@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System.Text.RegularExpressions;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// JsonUtility が未指定 bool と false 指定を区別できないため、ランナーに必要な存在情報だけを補います。

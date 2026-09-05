@@ -1,5 +1,5 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// オーバーレイ部品の基準位置を外から切り替えるための列挙です。

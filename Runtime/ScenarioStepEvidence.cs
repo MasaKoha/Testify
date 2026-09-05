@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// ステップ失敗時の証拠を固定パスで返し、ブリッジ側がファイルだけを見れば診断できるようにします。

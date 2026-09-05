@@ -8,7 +8,7 @@ AI エージェント（Claude Code / Codex）が Unity ゲームを動かして
 |---|---|
 | `Runtime/` | 観測（`UiSnapshot`）・操作（`AgentSession` 群、`InputInjector`）・ゲートウェイ（`AiCommandDispatcher`、`AiMailboxServer`）・シナリオ（`UiScenarioRunner`）・録画・診断 |
 | `Editor/` | メニュー（スナップショット、監査、階層ダンプ、視覚回帰、RunArchive、メールボックス起動） |
-| `Pipeline/` | Unity 公式 CLI（`com.unity.pipeline`）向けの `[CliCommand]` 薄ラッパ。`UNILAB_AI_PIPELINE` define で任意依存 |
+| `Pipeline/` | Unity 公式 CLI（`com.unity.pipeline`）向けの `[CliCommand]` 薄ラッパ。`TESTIFY_PIPELINE` define で任意依存 |
 | `Tests/EditMode/` | 純ロジックの EditMode テスト（PlayMode が要るものは書かない。利用側で実機確認する） |
 | `Tools/ai_client.py` | 標準ライブラリだけの共通クライアント（メールボックス経由） |
 | `TestProject/` | テスト実行用の最小 Unity プロジェクト。`Packages/manifest.json` がこのパッケージを `file:../../` で参照する |
@@ -17,7 +17,7 @@ AI エージェント（Claude Code / Codex）が Unity ゲームを動かして
 ## 守ること（設計の鉄則）
 
 1. **ゲーム本体のライブラリに依存しない。** UniLab / R3 / UniTask / VContainer を参照しない。依存は `UnityEngine`・.NET 標準・`Unity.TextMeshPro`・`Unity.InputSystem` に限る
-2. **名前空間は `UniLab.AI` のまま**（利用側の互換）。`Debug` という語を名前空間に使わない（`UnityEngine.Debug` と衝突した前例）
+2. **名前空間は `Testify`**（`Testify.Editor` / `Testify.Pipeline` / `Testify.Tests`）。`Debug` という語を名前空間に使わない（`UnityEngine.Debug` と衝突した前例）
 3. **毎フレーム処理でアロケーションを増やさない。** `AiMailboxServer.Update` など常駐処理には `GetComponent` / LINQ / `new` を足さない。観測時（`UiSnapshot.Capture`）だけは可。意図は `// perf:` で残す
 4. **op は `AiCommandDispatcher` だけに足す。** CLI（`Pipeline/`）とメールボックスは同じディスパッチャを呼ぶ。片方だけに機能を足さない
 5. **観測テキストと成果物 JSON の形式は互換を保つ。** 変えるときは設計書 12 と `docs/ops-reference.md` を同時に更新し、既存テストの期待値を意図をもって直す
@@ -35,7 +35,7 @@ AI エージェント（Claude Code / Codex）が Unity ゲームを動かして
 1. `develop` から `feature/…` / `fix/…` / `refactor/…` を切る。`develop` 直コミット禁止、PR 経由（squash）
 2. 実装は Codex に委譲してよい（`codex_run.sh` 経由）。**Codex に Unity を起動させない。** コンパイル・テストはこちらで:
    - `TestProject/` を Unity で開いて Test Runner（EditMode）を回す。または利用側プロジェクトへ同期して `recompile` → テスト
-3. 利用側（例: karakuri-client の `Assets/UniLab.AI/`）へは `rsync` で同期し、利用側でも PR を作る（同期先の手順は `docs/architecture.md`）
+3. 利用側（例: karakuri-client の `Assets/Testify/`）へは `rsync` で同期し、利用側でも PR を作る（同期先の手順は `docs/architecture.md`）
 4. 実機確認は利用側の PlayMode で行い、確認したら **必ず Play を止める**
 
 ## 既知の罠

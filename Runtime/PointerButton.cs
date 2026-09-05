@@ -1,5 +1,5 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// ポインタ入力の語彙をゲームパッド語彙と分け、クリック系 JSON を明示的に保つための列挙です。

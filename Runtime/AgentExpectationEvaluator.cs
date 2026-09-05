@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 目標判定を 02 の expect 語彙へ寄せ、LLM の成功自己申告を混ぜないための評価器です。

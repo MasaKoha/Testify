@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>予算・禁止語・反復履歴による停止判定をまとめます。</summary>
     internal sealed class AgentSessionGuards

@@ -5,7 +5,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>単独撮影と観測付き撮影の発行・完了待ち・画像解析を共有します。</summary>
     internal static class AiCaptureSupport

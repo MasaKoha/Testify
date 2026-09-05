@@ -16,11 +16,11 @@
 ```
 
 - 必要なパッケージ: Input System（生入力の注入に使う。無ければ `submit` / `move` 等の UI 経路だけ動く）、uGUI（TextMeshPro を含む）
-- 任意: Unity 公式 CLI `com.unity.pipeline`。入れると `unity command ai_*` から同じ機能を叩ける（`UNILAB_AI_PIPELINE` define が自動で立つ）
+- 任意: Unity 公式 CLI `com.unity.pipeline`。入れると `unity command ai_*` から同じ機能を叩ける（`TESTIFY_PIPELINE` define が自動で立つ）
 
 ### コピーして入れる（利用側で改造したい場合）
 
-リポジトリ直下の `Runtime/ Editor/ Pipeline/ Tests/ Tools/ package.json` を利用側の `Assets/UniLab.AI/` へ置く。karakuri-client はこの方式で、`rsync` で同期している（`architecture.md`）。
+リポジトリ直下の `Runtime/ Editor/ Pipeline/ Tests/ Tools/ package.json` を利用側の `Assets/Testify/` へ置く。karakuri-client はこの方式で、`rsync` で同期している（`architecture.md`）。
 
 ## 2. Play 中にメールボックスを起動する
 
@@ -29,13 +29,13 @@ AI クライアントは **ファイル I/O だけ** で Unity と話す（サ�
 起動方法は 3 つ（どれか 1 つ）:
 
 1. **自動起動**: Play を始める前に `DebugOutput/agent-mailbox/.enabled` を置く。`ai_client.py` は初回に自動で置く
-2. Editor メニュー `UniLab/AI/Mailbox/Start`（`Stop` で停止）
+2. Editor メニュー `Testify/Mailbox/Start`（`Stop` で停止）
 3. Unity 公式 CLI: `unity command ai_mailbox --start`（`--status` で間隔と最終処理時刻）
 
 ## 3. クライアントから操作する
 
 ```sh
-CLIENT=Packages/com.pisuke.testify/Tools/ai_client.py   # コピー導入なら Assets/UniLab.AI/Tools/ai_client.py
+CLIENT=Packages/com.pisuke.testify/Tools/ai_client.py   # コピー導入なら Assets/Testify/Tools/ai_client.py
 
 python3 $CLIENT ping
 python3 $CLIENT agent.begin '{"goal":{"freePlay":true,"maxSteps":5000,"maxSeconds":14400}}'
@@ -51,7 +51,7 @@ python3 $CLIENT agent.end
 ```
 
 - 出力は 1 行目がメタ情報の JSON（`ok` / `settled` / `ready` / `elapsedMs` …）、2 行目以降が観測テキスト
-- メールボックスの場所は `--mailbox DIR` → 環境変数 `UNILAB_AI_MAILBOX` → カレントから上へ `DebugOutput/agent-mailbox` を探索、の順で決まる
+- メールボックスの場所は `--mailbox DIR` → 環境変数 `TESTIFY_MAILBOX` → カレントから上へ `DebugOutput/agent-mailbox` を探索、の順で決まる
 
 ### Claude Code から
 
@@ -69,7 +69,7 @@ python3 $CLIENT agent.end
 
 ```csharp
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-using UniLab.AI;
+using Testify;
 
 public sealed class MyGameStateProvider : IGameStateProvider
 {
@@ -92,7 +92,7 @@ GameAdapterRegistry.CommandHandler = new MyGameCommandHandler(...); // 素材付
 
 | 症状 | 見るところ |
 |---|---|
-| `ok:false, error:"応答待ちがタイムアウト"` | Play 中か、`.enabled` を置いた後に Play を始めたか。`UniLab/AI/Mailbox/Start` で手動起動 |
+| `ok:false, error:"応答待ちがタイムアウト"` | Play 中か、`.enabled` を置いた後に Play を始めたか。`Testify/Mailbox/Start` で手動起動 |
 | `playMode が必要です` | `agent.*` は PlayMode 専用 |
 | `目標 JSON に期待値がありません` | `{"goal":{"freePlay":true}}` か `{"goal":{"goal":[{"kind":…}]}}` の形にする |
 | `submit 対象が見つかりません` | `agent.find` で名前を確認。同名行は `label:<部分一致>` で指定 |

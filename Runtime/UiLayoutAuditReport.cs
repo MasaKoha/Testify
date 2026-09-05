@@ -1,7 +1,7 @@
 using System;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 監査結果。JsonUtility でそのままシリアライズできる形にする。

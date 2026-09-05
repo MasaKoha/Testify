@@ -1,5 +1,5 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 再生終了時に件数と不一致をまとめ、期待結果の評価側へ一度で渡すための結果です。

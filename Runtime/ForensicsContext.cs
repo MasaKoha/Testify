@@ -1,5 +1,5 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 例外発生時にランナーの現在地を静的に渡し、DI なしの汎用ライブラリでも証拠を紐付けられるようにします。

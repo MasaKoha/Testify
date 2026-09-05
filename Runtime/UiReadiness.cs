@@ -1,5 +1,5 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>ランナーとゲートウェイの押下準備判定を一致させます。</summary>
     public static class UiReadiness

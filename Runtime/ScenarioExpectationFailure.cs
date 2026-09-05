@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 失敗理由を機械処理できる粒度で残し、後続の修正判断を画像確認に戻さないための JSON モデルです。

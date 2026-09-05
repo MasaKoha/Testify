@@ -1,9 +1,9 @@
-#if UNILAB_AI_PIPELINE
+#if TESTIFY_PIPELINE
 using System;
 using Unity.Pipeline.Commands;
 using UnityEngine;
 
-namespace UniLab.AI.Pipeline
+namespace Testify.Pipeline
 {
     /// <summary>Unity 内蔵メールボックスの寿命だけを CLI から操作します。</summary>
     public static class AiMailboxCliCommand

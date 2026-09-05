@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>保存用の全観測を保持したまま、表示対象だけを絞り込みます。</summary>
     internal static class UiObservationScope

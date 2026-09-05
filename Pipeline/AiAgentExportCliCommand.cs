@@ -1,8 +1,8 @@
-#if UNILAB_AI_PIPELINE
+#if TESTIFY_PIPELINE
 using Unity.Pipeline.Commands;
 using UnityEngine;
 
-namespace UniLab.AI.Pipeline
+namespace Testify.Pipeline
 {
     /// <summary>
     /// エージェントセッションのシナリオ書き出しを Unity 公式 CLI へ公開します。

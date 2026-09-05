@@ -5,7 +5,7 @@
 人間がスクリーンショットを開いて目視する工程を、**構造化された観測テキスト**と**事後条件の自動判定**に置き換える。
 Unity プロジェクトに入れると、AI はメールボックス（ファイル I/O）か CLI からゲームを 1 手ずつ操作し、押した結果を文字で受け取り、回帰シナリオに書き出せる。
 
-- 旧名: `UniLab.AI`（UniLab リポジトリの `Assets/UniLab.AI/` から切り出し。C# の名前空間は互換のため `UniLab.AI` のまま）
+- 旧名: `UniLab.AI`（UniLab リポジトリの `Assets/UniLab.AI/` から切り出し。C# の名前空間も `Testify` に改名済み（利用側は `using Testify;`））
 - 対応: Unity 6000.x、Input System、TextMeshPro（uGUI）。ゲーム本体のライブラリ（UniLab / R3 / UniTask / VContainer）には依存しない
 
 ## できること

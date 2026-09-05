@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// UI スナップショット・差分・計測値を読み、シナリオ期待値の失敗一覧を生成します。

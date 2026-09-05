@@ -10,7 +10,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 画面上の意味ある UI 状態を構造化データへ落とし込みます。

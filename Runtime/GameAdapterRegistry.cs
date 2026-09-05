@@ -1,9 +1,9 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// ゲーム固有アダプタの登録先です。
-    /// UniLab.AI が外部 DI へ依存しないまま利用側から実装を差し込めるように静的に保持します。
+    /// Testify が外部 DI へ依存しないまま利用側から実装を差し込めるように静的に保持します。
     /// </summary>
     public static class GameAdapterRegistry
     {

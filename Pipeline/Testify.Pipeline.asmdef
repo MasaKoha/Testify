@@ -1,8 +1,8 @@
 {
-    "name": "UniLab.AI.Pipeline",
-    "rootNamespace": "UniLab.AI.Pipeline",
+    "name": "Testify.Pipeline",
+    "rootNamespace": "Testify.Pipeline",
     "references": [
-        "UniLab.AI",
+        "Testify",
         "Unity.Pipeline"
     ],
     "includePlatforms": [
@@ -14,13 +14,13 @@
     "precompiledReferences": [],
     "autoReferenced": false,
     "defineConstraints": [
-        "UNILAB_AI_PIPELINE"
+        "TESTIFY_PIPELINE"
     ],
     "versionDefines": [
         {
             "name": "com.unity.pipeline",
             "expression": "0.2.0",
-            "define": "UNILAB_AI_PIPELINE"
+            "define": "TESTIFY_PIPELINE"
         }
     ],
     "noEngineReferences": false

@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 入力可視化オーバーレイの静的入口です。

@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// シナリオ全体の合否と成果物パスを固定形式で返し、外部ブリッジが完了をファイルで判断できるようにします。

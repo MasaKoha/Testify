@@ -1,5 +1,5 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// ゲーム側が「今は操作を受け付けられない」状態（画面遷移のフェード・ローディング・演出中の入力ブロック）を

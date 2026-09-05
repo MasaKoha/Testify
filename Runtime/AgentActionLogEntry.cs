@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 1 手ごとの観測と結果を JSONL に残し、失敗時も外側の判断を追跡できるようにする記録行です。

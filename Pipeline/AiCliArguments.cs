@@ -1,7 +1,7 @@
-#if UNILAB_AI_PIPELINE
+#if TESTIFY_PIPELINE
 using System;
 
-namespace UniLab.AI.Pipeline
+namespace Testify.Pipeline
 {
     /// <summary>CLI の型付き引数を JSON にエスケープするための転送形式です。</summary>
     [Serializable]

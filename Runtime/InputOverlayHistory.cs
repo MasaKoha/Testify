@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using static UniLab.AI.InputOverlayVisualPrimitives;
+using static Testify.InputOverlayVisualPrimitives;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>ステップラベル・入力履歴と録画除外マーカーの連携を担います。</summary>
     internal sealed class InputOverlayHistory

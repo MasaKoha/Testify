@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 各ステップの合否と証拠を並べ、途中失敗後も全体の観測を残せるようにする JSON モデルです。

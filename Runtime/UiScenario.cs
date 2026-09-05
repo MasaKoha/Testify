@@ -1,7 +1,7 @@
 using System;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// UI 自動巡回シナリオ。JSON から JsonUtility で読み込む。

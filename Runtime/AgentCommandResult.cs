@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 静的ブリッジ呼び出しの返り値を常に JSON 化し、外側が文字列解析に頼らないようにします。

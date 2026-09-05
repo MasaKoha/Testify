@@ -2,7 +2,7 @@
 using System.Collections;
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 同期ブリッジから開始された継続入力を Unity のフレーム進行へ逃がすための最小ドライバです。

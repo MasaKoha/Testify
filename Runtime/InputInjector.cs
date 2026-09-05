@@ -9,7 +9,7 @@ using UnityEngine.InputSystem.LowLevel;
 using TouchPhase = UnityEngine.InputSystem.TouchPhase;
 #endif
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// 実機と同じ Input System 経路へ流し込むことで、UI だけでなくゲーム側の入力解決そのものを検証するための注入器です。

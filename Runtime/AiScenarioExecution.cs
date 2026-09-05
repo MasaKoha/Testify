@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>CLI とメールボックスでシナリオの起動・結果読取・完了待機を共有します。</summary>
     internal static class AiScenarioExecution

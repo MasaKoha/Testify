@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>AI クライアント（CLI / メールボックス）から届く 1 要求です。</summary>
     [Serializable]

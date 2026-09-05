@@ -2,7 +2,7 @@
 using System;
 using UnityEngine;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>LLM エージェントの 1 セッション分の状態です。判断を外部に置き、Unity 側を観測・入力・記録の器に限定するために使います。</summary>
     public sealed class AgentSession : IDisposable

@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace UniLab.AI
+namespace Testify
 {
     /// <summary>
     /// シナリオの期待値を観測結果だけで判定し、自己申告の成功を混ぜないための JSON モデルです。
