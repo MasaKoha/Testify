@@ -15,6 +15,7 @@ namespace Testify
         private const string DefaultOutputDirectoryName = "ui-scenario", ScenarioResultsDirectoryName = "scenario-results", ReplayDirectoryName = "replays";
         private const string ResultVerdictPass = "pass", StepStatusPass = "pass", StepStatusFail = "fail";
         private const string FailureKindException = "exception", FailureKindStepResult = "stepResult", FailureKindTimeout = "timeout";
+        private const string FailureKindNoChange = "noChange";
         private const string StepPhaseNone = "none", StepPhaseMonkey = "monkey", StepPhaseReady = "ready", StepPhaseBeforeSnapshot = "beforeSnapshot", StepPhaseAction = "action";
         private const string StepPhaseWaitScene = "waitScene", StepPhaseSettle = "settle", StepPhaseAfterSnapshot = "afterSnapshot", StepPhaseArtifacts = "artifacts";
         private const string StepPhaseExpectations = "expectations", StepPhaseStopRecording = "stopRecording", StepPhaseResult = "result";
@@ -271,8 +272,24 @@ namespace Testify
             var diff = UiSnapshot.Compare(beforeSnapshot, afterSnapshot);
             if (ScenarioInputExecutor.IsInputStep(step) && diff.isEmpty)
             {
-                _warningCount++;
-                UnityEngine.Debug.LogWarning($"[UiScenarioRunner] 入力前後のスナップショット差分が空でした。 step={stepIndex}");
+                if (step.allowNoChange)
+                {
+                    _warningCount++;
+                    UnityEngine.Debug.LogWarning(
+                        $"[UiScenarioRunner] 入力前後のスナップショット差分が空でした（allowNoChange により許容）。 step={stepIndex}");
+                }
+                else
+                {
+                    // 「押したのに何も起きなかった」は検証の失敗そのもの。警告だけにすると
+                    // verdict=pass のまま壊れたランを通してしまう（2026-09-09 に実際に見逃した）。
+                    AddFailure(
+                        FailureKindNoChange,
+                        UiScenarioStepReader.GetStepFailureTarget(step),
+                        string.Empty,
+                        "入力しても画面が変わらなかった。操作が届いていないか、対象が反応していない。"
+                        + " 変化しないことが正しい操作なら、そのステップに allowNoChange: true を指定する。",
+                        string.Empty);
+                }
             }
             _currentStepPhase = StepPhaseArtifacts;
             yield return _artifactWriter.SaveStepArtifactsCoroutine(step, afterSnapshot, stepIndex, AddFailure, IncrementWarningCount, () => { }, () => { });
