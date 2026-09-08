@@ -17,6 +17,16 @@ namespace Testify
         /// <summary>探索時の未達など、回帰再生で確認すべき背景を残します。</summary>
         public string comment;
 
+        /// <summary>
+        /// 入力しても画面が変わらないことを許容する。
+        ///
+        /// 既定では、入力ステップの前後でスナップショットに差分が無ければ失敗にする。
+        /// 「押したのに何も起きなかった」は検証の失敗そのもので、見逃すと壊れたまま先へ進むため。
+        /// 表示が変わらないことが正しい操作（連打の抑止が効いた、開いているものを開き直した等）
+        /// でだけ true にする。
+        /// </summary>
+        public bool allowNoChange;
+
         /// <summary>指定要素を祖先 ScrollRect の表示範囲へ入れる。フォーカスは動かさない。</summary>
         public string scrollTo;
 
