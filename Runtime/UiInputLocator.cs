@@ -253,6 +253,9 @@ namespace Testify
         /// <summary>
         /// 文字待機を画像に頼らず実現し、TextMeshPro ベース UI のロード完了を同期するための判定です。
         /// </summary>
+        /// <summary>これ以下の透明度は画面に出ていないものとして扱う下限です。</summary>
+        private const float MinimumVisibleAlpha = 0.01f;
+
         public static bool HasVisibleText(string expectedText)
         {
             if (string.IsNullOrEmpty(expectedText))
@@ -274,13 +277,67 @@ namespace Testify
                     continue;
                 }
 
-                if (text.text.Contains(expectedText))
+                if (!text.text.Contains(expectedText))
                 {
-                    return true;
+                    continue;
                 }
+
+                if (!IsRendered(text))
+                {
+                    continue;
+                }
+
+                return true;
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// 文字が実際に画面へ出ているかを、透明度まで含めて判定します。
+        ///
+        /// テキストを代入したまま CanvasGroup の alpha だけで出し入れする UI があります。
+        /// トーストがその典型で、表示が終わっても text は残るため、文字列の一致だけを見ると
+        /// 「消えたあとも待機が成立する」偽陽性になります（実際に誤検知しました）。
+        /// </summary>
+        private static bool IsRendered(TextMeshProUGUI text)
+        {
+            if (text.color.a <= MinimumVisibleAlpha || text.alpha <= MinimumVisibleAlpha)
+            {
+                return false;
+            }
+
+            var canvas = text.canvas;
+            if (canvas == null || !canvas.isActiveAndEnabled)
+            {
+                return false;
+            }
+
+            return ResolveGroupAlpha(text.transform) > MinimumVisibleAlpha;
+        }
+
+        /// <summary>
+        /// 祖先の CanvasGroup を掛け合わせた実効の透明度を返します。
+        /// ignoreParentGroups が立っている段より上は掛けません（Unity の合成規則に合わせるため）。
+        /// </summary>
+        private static float ResolveGroupAlpha(Transform origin)
+        {
+            var alpha = 1f;
+            for (var current = origin; current != null; current = current.parent)
+            {
+                if (!current.TryGetComponent<CanvasGroup>(out var group))
+                {
+                    continue;
+                }
+
+                alpha *= group.alpha;
+                if (group.ignoreParentGroups)
+                {
+                    break;
+                }
+            }
+
+            return alpha;
         }
 
         /// <summary>
