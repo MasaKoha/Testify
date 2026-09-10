@@ -1,7 +1,7 @@
 #if UNITY_EDITOR
 using NUnit.Framework;
 
-namespace Testify.Tests
+namespace UniTestify.Tests
 {
     /// <summary>可視フィルタとスクロール後の差分の契約を検証します。</summary>
     public sealed class UiSnapshotTest

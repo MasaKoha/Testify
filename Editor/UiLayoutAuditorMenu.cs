@@ -3,7 +3,7 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-namespace Testify.Editor
+namespace UniTestify.Editor
 {
     /// <summary>
     /// UI レイアウト監査を JSON へ保存するエディタメニューです。

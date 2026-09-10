@@ -6,7 +6,7 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>
     /// 例外・エラーログの瞬間の状況を自動保存する。

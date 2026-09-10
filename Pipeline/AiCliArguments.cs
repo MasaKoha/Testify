@@ -1,7 +1,7 @@
 #if TESTIFY_PIPELINE
 using System;
 
-namespace Testify.Pipeline
+namespace UniTestify.Pipeline
 {
     /// <summary>CLI の型付き引数を JSON にエスケープするための転送形式です。</summary>
     [Serializable]

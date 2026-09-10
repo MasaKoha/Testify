@@ -7,7 +7,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
 #endif
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>行動の解釈と入力送出をセッション状態から分離します。</summary>
     internal sealed class AgentActionExecutor

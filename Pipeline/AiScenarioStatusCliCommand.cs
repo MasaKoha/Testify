@@ -1,8 +1,8 @@
 #if TESTIFY_PIPELINE
-using Testify;
+using UniTestify;
 using Unity.Pipeline.Commands;
 
-namespace Testify.Pipeline
+namespace UniTestify.Pipeline
 {
     /// <summary>
     /// 直前のシナリオ実行状態を Unity 公式 CLI へ公開します。

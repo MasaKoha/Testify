@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>
     /// 02 の expect 語彙をそのまま目標へ使い、新しい判定言語を増やさないための入力 JSON です。

@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>省略値を経路間で統一するゲートウェイ引数です。</summary>
     [Serializable]

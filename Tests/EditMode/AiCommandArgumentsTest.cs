@@ -2,7 +2,7 @@
 using System;
 using NUnit.Framework;
 
-namespace Testify.Tests
+namespace UniTestify.Tests
 {
     /// <summary>省略値と実時間の待機引数の契約を検証します。</summary>
     public sealed class AiCommandArgumentsTest

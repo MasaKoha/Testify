@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using UnityEngine;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>
     /// 入力可視化オーバーレイの静的入口です。

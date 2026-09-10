@@ -2,7 +2,7 @@
 using System;
 using UnityEngine;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>
     /// AI ツール実行中かどうかを参照カウントで公開します。

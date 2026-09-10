@@ -1,7 +1,7 @@
 using System;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-namespace Testify
+namespace UniTestify
 {
     /// <summary>
     /// シリアライズ対象フィールドの結線状態です。

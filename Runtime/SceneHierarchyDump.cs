@@ -1,7 +1,7 @@
 using System;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-namespace Testify
+namespace UniTestify
 {
     /// <summary>
     /// シーン階層ダンプ全体です。

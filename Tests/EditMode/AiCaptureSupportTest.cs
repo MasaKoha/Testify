@@ -1,7 +1,7 @@
 #if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
-namespace Testify.Tests
+namespace UniTestify.Tests
 {
     /// <summary>PR4 の観測契約をシーンなしで検証します。</summary>
     public sealed class AiCaptureSupportTest

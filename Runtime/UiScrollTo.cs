@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>対象矩形を祖先のスクロール表示範囲へ最小移動で収めます。</summary>
     internal static class UiScrollTo

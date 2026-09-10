@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>
     /// 1 時点の UI 状態を機械処理向けに固定化した JSON モデルです。

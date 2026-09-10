@@ -1,9 +1,9 @@
 #if TESTIFY_PIPELINE
-using Testify;
+using UniTestify;
 using Unity.Pipeline.Commands;
 using UnityEngine;
 
-namespace Testify.Pipeline
+namespace UniTestify.Pipeline
 {
     /// <summary>
     /// シナリオ JSON の起動を Unity 公式 CLI へ公開します。

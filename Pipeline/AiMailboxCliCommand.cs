@@ -3,7 +3,7 @@ using System;
 using Unity.Pipeline.Commands;
 using UnityEngine;
 
-namespace Testify.Pipeline
+namespace UniTestify.Pipeline
 {
     /// <summary>Unity 内蔵メールボックスの寿命だけを CLI から操作します。</summary>
     public static class AiMailboxCliCommand

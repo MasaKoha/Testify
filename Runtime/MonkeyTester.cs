@@ -6,7 +6,7 @@ using System.Globalization;
 using System.IO;
 using UnityEngine;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>
     /// スナップショットから操作可能要素を選び、想定外の順序で例外や詰まりを掘る使い捨てランナーです。

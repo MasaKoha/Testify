@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using UnityEngine;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>
     /// スレッド外ログをメインスレッドで収集するため、Unity API に触れる地点を Update へ寄せます。

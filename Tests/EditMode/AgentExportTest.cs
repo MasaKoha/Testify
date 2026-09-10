@@ -4,7 +4,7 @@ using System.IO;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Testify.Tests
+namespace UniTestify.Tests
 {
     /// <summary>実入力を使わず、探索履歴から回帰 JSON への変換を検証します。</summary>
     public sealed class AgentExportTest

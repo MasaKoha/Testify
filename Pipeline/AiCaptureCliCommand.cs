@@ -2,7 +2,7 @@
 using Unity.Pipeline.Commands;
 using UnityEngine;
 
-namespace Testify.Pipeline
+namespace UniTestify.Pipeline
 {
     /// <summary>画面撮影の即時要求を CLI へ公開します。</summary>
     public static class AiCaptureCliCommand

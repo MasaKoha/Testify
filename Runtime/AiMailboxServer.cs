@@ -4,7 +4,7 @@ using System.Collections;
 using System.IO;
 using UnityEngine;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>Unity のフレーム上でファイル要求を一件ずつ処理します。</summary>
     public sealed class AiMailboxServer : MonoBehaviour

@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>
     /// 例外時の文脈を保存時点で固定し、次フレーム収集中にランナー状態が進んでも証拠をずらさないための JSON モデルです。

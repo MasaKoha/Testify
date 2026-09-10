@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>既存スナップショットの検索結果を一件一行で返します。</summary>
     internal static class AgentFind

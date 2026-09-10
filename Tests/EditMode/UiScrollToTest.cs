@@ -2,7 +2,7 @@
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Testify.Tests
+namespace UniTestify.Tests
 {
     /// <summary>シーンを生成せず、スクロール量とシナリオ語彙を検証します。</summary>
     public sealed class UiScrollToTest

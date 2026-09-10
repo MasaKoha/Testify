@@ -1,6 +1,6 @@
 using System;
 
-namespace Testify.Editor
+namespace UniTestify.Editor
 {
     /// <summary>
     /// ラン全体の比較結果を 1 ファイルへ集約し、RunArchive などが後処理しやすい形を作る。

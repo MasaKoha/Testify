@@ -1,6 +1,6 @@
 using System;
 
-namespace Testify.Editor
+namespace UniTestify.Editor
 {
     /// <summary>
     /// 失敗理由の配列を落とさず再保存し、証拠ファイルのパスだけ差し替えても判定根拠を保持できるようにする。

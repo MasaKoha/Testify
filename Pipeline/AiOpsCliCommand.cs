@@ -2,7 +2,7 @@
 using Unity.Pipeline.Commands;
 using UnityEngine;
 
-namespace Testify.Pipeline
+namespace UniTestify.Pipeline
 {
     /// <summary>利用可能なゲートウェイ操作を CLI へ公開します。</summary>
     public static class AiOpsCliCommand

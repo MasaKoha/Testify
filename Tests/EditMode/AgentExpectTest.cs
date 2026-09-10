@@ -2,7 +2,7 @@
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Testify.Tests
+namespace UniTestify.Tests
 {
     /// <summary>合成観測で事後条件の応答と同期一括実行を検証します。</summary>
     public sealed class AgentExpectTest

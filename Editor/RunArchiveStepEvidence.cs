@@ -1,6 +1,6 @@
 using System;
 
-namespace Testify.Editor
+namespace UniTestify.Editor
 {
     /// <summary>
     /// 失敗証拠の参照先を 1 箇所へまとめ、RunArchive への再配置時に更新対象を限定できるようにする。

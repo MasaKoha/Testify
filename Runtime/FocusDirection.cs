@@ -1,5 +1,5 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-namespace Testify
+namespace UniTestify
 {
     /// <summary>
     /// 方向入力を文字列ではなく型で扱い、シナリオ解釈の揺れを防ぐための 4 方向です。

@@ -1,8 +1,8 @@
 {
-    "name": "Testify.Pipeline",
-    "rootNamespace": "Testify.Pipeline",
+    "name": "UniTestify.Pipeline",
+    "rootNamespace": "UniTestify.Pipeline",
     "references": [
-        "Testify",
+        "UniTestify",
         "Unity.Pipeline"
     ],
     "includePlatforms": [

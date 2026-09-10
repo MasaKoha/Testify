@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>入力 API の差を吸収し、オーバーレイへ押下集合を渡します。</summary>
     internal sealed class InputOverlayLegacyInputSource

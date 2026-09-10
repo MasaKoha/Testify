@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>観測と失敗理由の出力形式を一箇所に固定します。</summary>
     internal sealed class AgentObservationFormatter

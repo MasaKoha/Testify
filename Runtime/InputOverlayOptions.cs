@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>
     /// 入力可視化オーバーレイの表示方針をまとめます。

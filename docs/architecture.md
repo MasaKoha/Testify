@@ -47,7 +47,7 @@
 1. ゲーム本体のライブラリに依存しない（UniLab / R3 / UniTask / VContainer）。依存は `UnityEngine`・.NET 標準・`Unity.TextMeshPro`・`Unity.InputSystem`
 2. `Pipeline/` は `com.unity.pipeline` が無くてもコンパイルできる（asmdef の `versionDefines` で `TESTIFY_PIPELINE`）
 3. 毎フレーム処理（`AiMailboxServer.Update`、オーバーレイ描画）はアロケーションを増やさない。観測時（`UiSnapshot.Capture`）だけ `GetComponent` 可
-4. 名前空間は `Testify`。`Debug` という語を名前空間に使わない
+4. 名前空間は `UniTestify`。`Debug` という語を名前空間に使わない
 
 ## 速さのための設計
 
@@ -60,20 +60,20 @@
 ## 切り出しの経緯
 
 - 2026-09-02〜05 に UniLab リポジトリの `Assets/UniLab.AI/` として実装（設計書 01〜12）
-- 2026-09-05 に AI ゲートウェイ（PR1〜PR7）で Codex / Claude の両方から同じ経路で使えるようになり、UniLab 本体への依存が無いことを保ったまま **Testify** として独立
-- 名前は音ゲー曲（Arcaea「Testify」）から。「検証して証言する」
+- 2026-09-05 に AI ゲートウェイ（PR1〜PR7）で Codex / Claude の両方から同じ経路で使えるようになり、UniLab 本体への依存が無いことを保ったまま **UniTestify** として独立
+- 名前は音ゲー曲（Arcaea「UniTestify」）から。「検証して証言する」
 
 ## 利用側への同期
 
-パッケージ参照（git URL）が基本。コピー導入の利用側（karakuri-client の `Assets/Testify/`）へは:
+パッケージ参照（git URL）が基本。コピー導入の利用側（karakuri-client の `Assets/UniTestify/`）へは:
 
 ```bash
 rsync -a --delete --exclude TestProject --exclude docs --exclude .git --exclude .gitignore --exclude CLAUDE.md --exclude AGENTS.md --exclude README.md --exclude LICENSE \
-  /Users/masakoha/GitHub/pisuke-root/Testify/ \
-  /Users/masakoha/GitHub/pisuke-root/karakuri/karakuri-client/Assets/Testify/
+  /Users/masakoha/GitHub/pisuke-root/UniTestify/ \
+  /Users/masakoha/GitHub/pisuke-root/karakuri/karakuri-client/Assets/UniTestify/
 ```
 
-変更は Testify 側で PR → マージ → 利用側で同期 PR、の順。利用側で直接 `Assets/Testify/` を編集しない。
+変更は UniTestify 側で PR → マージ → 利用側で同期 PR、の順。利用側で直接 `Assets/UniTestify/` を編集しない。
 
 ## テスト
 

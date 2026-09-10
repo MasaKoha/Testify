@@ -1,7 +1,7 @@
 #if UNITY_EDITOR
 using NUnit.Framework;
 
-namespace Testify.Tests
+namespace UniTestify.Tests
 {
     /// <summary>PlayMode 不要のゲートウェイ契約を検証します。</summary>
     public sealed class AiCommandDispatcherTest

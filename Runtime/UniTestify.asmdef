@@ -1,6 +1,6 @@
 {
-    "name": "Testify",
-    "rootNamespace": "Testify",
+    "name": "UniTestify",
+    "rootNamespace": "UniTestify",
     "references": [
         "Unity.TextMeshPro",
         "Unity.InputSystem"

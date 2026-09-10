@@ -1,7 +1,7 @@
 #if UNITY_EDITOR
 using NUnit.Framework;
 
-namespace Testify.Tests
+namespace UniTestify.Tests
 {
     /// <summary>ゲーム実行なしで予算と禁止語による停止条件を検証します。</summary>
     public sealed class AgentSessionGuardsTest

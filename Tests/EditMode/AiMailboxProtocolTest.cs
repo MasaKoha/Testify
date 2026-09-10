@@ -4,7 +4,7 @@ using System.IO;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Testify.Tests
+namespace UniTestify.Tests
 {
     /// <summary>書きかけの隔離と既存クライアント向けの JSON キーを検証します。</summary>
     public sealed class AiMailboxProtocolTest

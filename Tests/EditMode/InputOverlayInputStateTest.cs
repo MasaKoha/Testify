@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 
-namespace Testify.Tests
+namespace UniTestify.Tests
 {
     /// <summary>描画や入力デバイスなしで押下集合の保持を検証します。</summary>
     public sealed class InputOverlayInputStateTest

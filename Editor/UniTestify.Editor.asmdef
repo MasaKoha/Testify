@@ -1,8 +1,8 @@
 {
-    "name": "Testify.Editor",
-    "rootNamespace": "Testify.Editor",
+    "name": "UniTestify.Editor",
+    "rootNamespace": "UniTestify.Editor",
     "references": [
-        "Testify"
+        "UniTestify"
     ],
     "includePlatforms": [
         "Editor"

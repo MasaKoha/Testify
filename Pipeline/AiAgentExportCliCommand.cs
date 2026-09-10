@@ -2,7 +2,7 @@
 using Unity.Pipeline.Commands;
 using UnityEngine;
 
-namespace Testify.Pipeline
+namespace UniTestify.Pipeline
 {
     /// <summary>
     /// エージェントセッションのシナリオ書き出しを Unity 公式 CLI へ公開します。

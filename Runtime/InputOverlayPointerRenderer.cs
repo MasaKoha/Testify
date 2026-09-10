@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using static Testify.InputOverlayVisualPrimitives;
+using static UniTestify.InputOverlayVisualPrimitives;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>ポインタ・クリック波紋・軌跡・タッチの描画を保持します。</summary>
     internal sealed class InputOverlayPointerRenderer

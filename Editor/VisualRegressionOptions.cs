@@ -1,6 +1,6 @@
 using System;
 
-namespace Testify.Editor
+namespace UniTestify.Editor
 {
     /// <summary>
     /// ノイズ許容を明示設定に切り出し、UI 特性ごとの差分感度をコード変更なしで調整できるようにする。

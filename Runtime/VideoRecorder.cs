@@ -11,7 +11,7 @@ using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>
     /// 連番 JPG による画面録画を行う使い捨てコンポーネントです。

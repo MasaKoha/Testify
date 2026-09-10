@@ -2,7 +2,7 @@
 using System;
 using NUnit.Framework;
 
-namespace Testify.Tests
+namespace UniTestify.Tests
 {
     /// <summary>観測文面と候補一覧を合成スナップショットで検証します。</summary>
     public sealed class AgentObservationFormatterTest

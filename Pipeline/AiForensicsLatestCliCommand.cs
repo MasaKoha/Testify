@@ -1,9 +1,9 @@
 #if TESTIFY_PIPELINE
 using System.IO;
-using Testify;
+using UniTestify;
 using Unity.Pipeline.Commands;
 
-namespace Testify.Pipeline
+namespace UniTestify.Pipeline
 {
     /// <summary>
     /// 最新フォレンジック成果物の参照を Unity 公式 CLI へ公開します。

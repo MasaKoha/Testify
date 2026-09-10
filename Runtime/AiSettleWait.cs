@@ -4,7 +4,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>入力とシーン遷移後の静止時間を実時間で追跡します。</summary>
     internal sealed class AiSettleWait : IDisposable

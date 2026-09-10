@@ -1,6 +1,6 @@
 using System;
 
-namespace Testify.Editor
+namespace UniTestify.Editor
 {
     /// <summary>
     /// capture 単位で無視領域を束ね、差分の理由を画面ごとに分離できるようにする。

@@ -1,5 +1,5 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-namespace Testify
+namespace UniTestify
 {
     /// <summary>ランナーとゲートウェイの押下準備判定を一致させます。</summary>
     public static class UiReadiness

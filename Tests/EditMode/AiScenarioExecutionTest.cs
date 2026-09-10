@@ -4,7 +4,7 @@ using System.IO;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Testify.Tests
+namespace UniTestify.Tests
 {
     /// <summary>合成した結果ファイルで完了・未完了・タイムアウトの契約を検証します。</summary>
     public sealed class AiScenarioExecutionTest

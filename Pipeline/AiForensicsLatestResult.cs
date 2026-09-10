@@ -1,7 +1,7 @@
 #if TESTIFY_PIPELINE
 using System;
 
-namespace Testify.Pipeline
+namespace UniTestify.Pipeline
 {
     /// <summary>
     /// `ai_forensics_latest` の返却形式です。

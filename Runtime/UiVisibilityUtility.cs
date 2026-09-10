@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>
     /// UI 観測で共通になる可視判定・遮蔽判定をまとめます。

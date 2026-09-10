@@ -1,6 +1,6 @@
 using System;
 
-namespace Testify.Editor
+namespace UniTestify.Editor
 {
     /// <summary>
     /// `ignore.json` の内容を配列へ正規化し、`JsonUtility` と同じ扱いやすさで後続処理へ渡す。

@@ -3,7 +3,7 @@ using System;
 using System.IO;
 using UnityEditor;
 
-namespace Testify.Pipeline
+namespace UniTestify.Pipeline
 {
     /// <summary>
     /// CLI ラッパ間で共有する最小限の状態と共通処理です。

@@ -3,7 +3,7 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-namespace Testify.Editor
+namespace UniTestify.Editor
 {
     /// <summary>
     /// シーン階層ダンプを JSON へ保存するエディタメニューです。

@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using UnityEngine;
 
-namespace Testify
+namespace UniTestify
 {
     /// <summary>
     /// 依存追加なしで毎フレーム採取するため、明示生成した一時オブジェクトだけに Update を閉じ込める。

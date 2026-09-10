@@ -1,6 +1,6 @@
 using System;
 
-namespace Testify.Editor
+namespace UniTestify.Editor
 {
     /// <summary>
     /// 実時間表示など設計上どうしても揺れる領域だけを狭く除外するための矩形定義。

@@ -1,9 +1,9 @@
 #if TESTIFY_PIPELINE
 using System.IO;
-using Testify;
+using UniTestify;
 using Unity.Pipeline.Commands;
 
-namespace Testify.Pipeline
+namespace UniTestify.Pipeline
 {
     /// <summary>
     /// モンキーテスター起動を Unity 公式 CLI へ公開します。
