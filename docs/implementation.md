@@ -134,3 +134,120 @@ C# のバイト列は維持し、ロジック、コメント、namespace、using
 3. `Runtime/Recording/VideoRecorder.cs`（790 行）は、キャプチャ範囲解決、GPU readback とバッファ所有、
    エンコード・書込タスク、manifest・フレーム一覧・ffmpeg コマンド生成を分けるべき。
    理由は GPU リソースと非同期書込の寿命、および出力形式の責務をそれぞれ明示できるため。停止時の待機・解放順序は維持する。
+
+## 2026-09-10 巨大ファイル三件の責務分割
+
+対象は `RunArchive.cs`・`UiSnapshot.cs`・`VideoRecorder.cs`。入口の名前・配置・公開 API を維持し、
+独立した通常クラスへ委譲した。`partial`、新しい外部依存、op・引数・応答フィールドの追加はない。
+既存ファイルの変更はこの三件と本記録だけ。既存の呼び出し側・テスト・asmdef・シリアライズモデル・`.meta` は変更していない。
+作業開始時の `.git/HEAD` は `refactor/split-large-files`。ブランチ変更・ステージング・コミットは行っていない。
+
+### 変更・追加ファイルと分割前後の行数
+
+行数は空行・コメント・条件付きコンパイルを含む。分割先はすべて 300 行以下で、超過の例外はない。
+以下の「追加」22 件と後掲のテスト四件には、それぞれ同名の `.cs.meta` を追加した。
+
+| ファイル | 分割前 | 分割後 | 責務 |
+|---|---:|---:|---|
+| `Editor/RunArchive/RunArchive.cs` | 993 | 116 | 公開入口・集約順序 |
+| `Editor/RunArchive/Export/RunArchiveFileStorage.cs` | 追加 | 124 | 時間範囲による選択・コピー・出力先とパス規則 |
+| `Editor/RunArchive/Export/RunArchiveScenarioArtifacts.cs` | 追加 | 140 | キャプチャ・監査・観測の配送と証拠対応表 |
+| `Editor/RunArchive/Export/RunArchiveDirectoryArtifacts.cs` | 追加 | 160 | 録画・例外記録・探索ディレクトリの選択と配送 |
+| `Editor/RunArchive/Export/RunArchiveReportArtifacts.cs` | 追加 | 108 | 視覚回帰・性能・ログの選択と配送 |
+| `Editor/RunArchive/References/RunArchiveScenarioResultWriter.cs` | 追加 | 111 | シナリオ結果の読込・参照書換え・保存 |
+| `Editor/RunArchive/References/RunArchiveReferenceRewriter.cs` | 追加 | 89 | 録画 manifest と視覚回帰レポートの参照書換え |
+| `Editor/RunArchive/Summary/RunArchiveSummaryBuilder.cs` | 追加 | 161 | 件数集計・ラン概要・コミット情報 |
+| `Editor/RunArchive/Summary/RunArchiveTiming.cs` | 追加 | 81 | 結果の時刻と所要時間による期間解決 |
+| `Editor/RunArchive/Index/RunArchiveIndexWriter.cs` | 追加 | 65 | 保存済みランから索引を再構築 |
+| `Runtime/Snapshot/UiSnapshot.cs` | 836 | 80 | 公開入口・フレームキャッシュとリセット |
+| `Runtime/Snapshot/Collection/UiSnapshotCollector.cs` | 追加 | 33 | シーン・画面・要素・ゲーム状態の観測文書化 |
+| `Runtime/Snapshot/Collection/UiSnapshotElementCollector.cs` | 追加 | 97 | UI 探索と画面順ソート |
+| `Runtime/Snapshot/Collection/UiSnapshotElementFactory.cs` | 追加 | 190 | 操作対象・テキストの意味と可視性の変換 |
+| `Runtime/Snapshot/Collection/UiSnapshotGameStateCollector.cs` | 追加 | 73 | ゲーム状態の取得・キー順・値の文字列化 |
+| `Runtime/Snapshot/Comparison/UiSnapshotComparer.cs` | 追加 | 143 | 要素・フォーカス・シーンの差分 |
+| `Runtime/Snapshot/Output/UiSnapshotCompactTextFormatter.cs` | 追加 | 285 | compact text の表記・省略・整列 |
+| `Runtime/Snapshot/Output/UiSnapshotStorage.cs` | 追加 | 55 | JSON 保存とファイル命名 |
+| `Runtime/Recording/VideoRecorder.cs` | 790 | 247 | 公開入口・時間進行・停止と破棄の順序 |
+| `Runtime/Recording/Capture/VideoCaptureGeometry.cs` | 追加 | 137 | 開始時の画面寸法・切り抜き・変更警告 |
+| `Runtime/Recording/Capture/VideoCaptureBuffers.cs` | 追加 | 115 | GPU readback・テクスチャと永続バッファの所有 |
+| `Runtime/Recording/Encoding/VideoFrameWriter.cs` | 追加 | 146 | エンコード・非同期書込・一時配列の破棄とバッファ返却 |
+| `Runtime/Recording/Output/VideoRecordingArtifacts.cs` | 追加 | 198 | フレーム履歴・失敗記録・目印・manifest と一覧・結果 |
+| `Runtime/Recording/Output/VideoRecordingCommand.cs` | 追加 | 29 | ffmpeg コマンドの表記 |
+| `Runtime/Recording/Session/VideoRecordingEnvironment.cs` | 追加 | 143 | 音声・描画レート・入力可視化の変更と復元 |
+
+### 所有権と互換性の確認方法
+
+- 変更前の三ファイルを退避し、公開メソッド宣言・オーバーロード・既定引数・プロパティ・公開定数をソース比較した。
+  `UiSnapshot.Capture(int)` とキャッシュリセット属性も維持。名前空間は `UniTestify` / `UniTestify.Editor` のまま。
+- `UiSnapshot` の既存 33 メソッドは、追加した委譲先の型名を除き本文が一致する。
+  中間リスト・配列・LINQ・収集時のインスタンス生成を分割目的で追加していない。
+  キャッシュ判定・フレーム番号・非 Play 時の再収集は入口に残した。
+- `RunArchive` の既存 36 メソッド中 34 件は同じ基準で本文が一致する。
+  `CopyRecordings` / `CopyForensics` は、期間内ディレクトリの列挙を private メソッドへ抽出して深いネストを解消した。
+  明示パスの優先、並べ替え、`_current` 除外、期間判定、上書きの順序は維持。
+  シナリオ・録画・視覚回帰の書換え本文、相対／絶対パスの扱い、区切り文字の正規化は変更していない。
+- 三ファイルの文字列・文字リテラルの綴りを分割先へ照合した。補間ログのフィールド参照を所有先へ読み替えたうえで、
+  `UiSnapshot` 50 種、`RunArchive` 41 種、`VideoRecorder` 21 種の既存リテラルを確認した。
+  JSON モデルとフィールド順、`JsonUtility.ToJson(..., true)`、ファイル名・パスの組立て、ffmpeg の引用符・引数順・小数書式を維持。
+- `VideoRecorder.StopRecording` は「ループ停止 → 実測時間確定 → 音声停止 → 描画設定復元 → GPU 待機 → 書込待機 →
+  テクスチャ・永続バッファ解放 → オーバーレイ復元 → 成果物保存 → GameObject 破棄」を維持した。
+  `OnDestroy` 側の「描画設定復元 → 音声停止」の順序も変更していない。最終解放済みフラグは入口に残る。
+- 永続バッファとテクスチャは `VideoCaptureBuffers` が所有し、GPU と書込の完了を待った入口だけが最終解放を指示する。
+  `VideoFrameWriter` は借用したバッファを使い、`finally` で JPEG → 上下反転 → 切り抜きの一時配列を破棄してから返却する。
+  readback 失敗時は即返却し、書込失敗時は失敗フレームを記録する。ロックと待機の位置、バッファ数は維持した。
+  分割用オブジェクトの生成は録画コンポーネント生成時だけで、フレームごとの中間コレクションを追加していない。
+- 変更・追加した C# 29 件について、文字列境界・エスケープ・括弧対応・内部フィールドと委譲先メンバーの存在、
+  public / internal の日本語 summary、Runtime の条件付きコンパイルを静的確認した。
+  using は移動元の宣言を出発点とし、リポジトリ内の型定義・名前空間を検索して不要分だけ除去した。
+  テストの JSON 期待値三件は、文字列を復元して JSON として構文を確認した。
+- `GetComponent` 系と `AddComponent` の検索結果は、既存の UI 観測と録画コンポーネント生成だけ。
+  観測基盤の許可範囲であり、毎フレーム処理への追加はない。
+- 作業前に記録した SHA-256 と比較し、対象外の既存ファイル、既存 GUID、呼び出し側、既存テスト、asmdef の内容一致を確認した。
+  これらはソースの静的確認であり、コンパイル成功や実行時の出力一致を保証する実行確認ではない。
+
+### 追加テスト
+
+既存テストの期待値は変更していない。追加は以下の四ファイル、9 テストメソッド（TestCase 展開で 13 ケース）。
+いずれも PlayMode や GPU readback を必要としない。テストコードを書いたが実行していない。
+
+| 追加ファイル | 行数 | 追加したテスト名 |
+|---|---:|---|
+| `Tests/EditMode/Runtime/Snapshot/UiSnapshotCompatibilityTest.cs` | 139 | `CompactTextPreservesExactStatusAndGameText`、`CompactTextPreservesExactCollapsedSequence`、`ComparePreservesDuplicatePathAndFieldOrdering`、`SavePreservesNamedJsonAndEscapedLabels` |
+| `Tests/EditMode/Runtime/Recording/Capture/VideoCaptureGeometryTest.cs` | 29 | `ClampPixelRectPreservesRoundingAndBounds` |
+| `Tests/EditMode/Runtime/Recording/Output/VideoRecordingCommandTest.cs` | 51 | `CreateFfmpegCommandPreservesExactArguments` |
+| `Tests/EditMode/Runtime/Recording/Output/VideoRecordingArtifactsTest.cs` | 118 | `FrameListPreservesSurvivingFramesAndDurations`、`FrameListIsAbsentWithoutSurvivingFrames`、`FrameListPreservesMinimumDuration` |
+
+### フォルダと .meta
+
+追加した `.meta` は C# 用 26 件とフォルダ用 14 件、計 40 件。同名アセットとの対応と既存を含めた GUID の重複なしを確認した。
+フォルダ用の追加一覧は次のとおり。
+
+- `Editor/RunArchive/Export.meta`、`Editor/RunArchive/References.meta`、`Editor/RunArchive/Summary.meta`、`Editor/RunArchive/Index.meta`
+- `Runtime/Snapshot/Collection.meta`、`Runtime/Snapshot/Comparison.meta`、`Runtime/Snapshot/Output.meta`
+- `Runtime/Recording/Capture.meta`、`Runtime/Recording/Encoding.meta`、`Runtime/Recording/Output.meta`、`Runtime/Recording/Session.meta`
+- `Tests/EditMode/Runtime/Recording.meta`、`Tests/EditMode/Runtime/Recording/Capture.meta`、`Tests/EditMode/Runtime/Recording/Output.meta`
+
+入口フォルダの C# 数は RunArchive 8、Snapshot 6、Recording 5 のまま。
+新規実装フォルダの最大は 4、追加先テストフォルダの最大は 3 で、すべて上限 10 以下。
+
+### 未実行の確認事項
+
+- Unity の起動・インポート、コンパイル、`dotnet build`、既存／追加 EditMode テスト、PlayMode テストは未実行。依頼者が行う。
+- 録画の正常停止・連続停止・録画中の GameObject 破棄、readback／書込失敗、音声あり／なし、画面サイズ変更時の動作は実機確認が必要。
+- 同じ入力成果物からのラン集約について、コピー先・書換え後 JSON・索引の実行比較は未実行。
+  実機確認では生成時刻・ラン連番・出力ルートを揃えて比較する。
+- フレームキャッシュと観測時アロケーションの実測は未実行。
+- 追加した op / 引数 / 応答フィールド: なし。
+
+## 提案
+
+このランでは実装していない。残る四ファイルは次の責務で分けるべき。
+
+1. `InputOverlayRenderer`（731 行）は、ゲームパッド描画、キーボード描画、表示デバイス切替方針、ルートの組立てを分けるべき。
+   理由は機器別の図形変更と入力履歴に基づく切替判断で変更理由が異なるため。既存のポインタ描画・入力状態の分離を維持する。
+2. `UiInputLocator`（601 行）は、パス／ラベル検索、ラベル正規化と候補優先順位、可視性・遮蔽判定、操作・リプレイアンカー判定を分けるべき。
+   理由は対象特定の規則と操作成立条件を独立して確認できるため。
+3. `InputInjector`（577 行）は、仮想デバイスの所有・解放、ゲームパッド／キーボード注入、マウス注入、タッチジェスチャーを分けるべき。
+   理由はデバイス寿命と各入力系列の状態遷移で変更理由が異なるため。押下解除と Dispose の順序は入口で統括する。
+4. `UiScenarioRunner`（513 行）は、ステップ進行、準備・シーン待機、結果／失敗の蓄積、中断・終了時の後処理を分けるべき。
+   理由は実行順序と待機条件と証拠・結果の確定を独立して読めるため。既存の実行セッション境界を維持する。
