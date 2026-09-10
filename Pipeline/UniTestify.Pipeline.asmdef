@@ -1,0 +1,27 @@
+{
+    "name": "UniTestify.Pipeline",
+    "rootNamespace": "UniTestify.Pipeline",
+    "references": [
+        "UniTestify",
+        "Unity.Pipeline"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "TESTIFY_PIPELINE"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.pipeline",
+            "expression": "0.2.0",
+            "define": "TESTIFY_PIPELINE"
+        }
+    ],
+    "noEngineReferences": false
+}

@@ -1,11 +1,11 @@
-# Testify
+# UniTestify
 
 **AI エージェント（Claude Code / Codex）が Unity のゲームを実際に動かし、自分で見て、何がおかしいかを判断する**ためのツール群。
 
 人間がスクリーンショットを開いて目視する工程を、**構造化された観測テキスト**と**事後条件の自動判定**に置き換える。
 Unity プロジェクトに入れると、AI はメールボックス（ファイル I/O）か CLI からゲームを 1 手ずつ操作し、押した結果を文字で受け取り、回帰シナリオに書き出せる。
 
-- 旧名: `UniLab.AI`（UniLab リポジトリの `Assets/UniLab.AI/` から切り出し。C# の名前空間も `Testify` に改名済み（利用側は `using Testify;`））
+- 旧名: `UniLab.AI`（UniLab リポジトリの `Assets/UniLab.AI/` から切り出し。C# の名前空間も `UniTestify` に改名済み（利用側は `using UniTestify;`））
 - 対応: Unity 6000.x、Input System、TextMeshPro（uGUI）。ゲーム本体のライブラリ（UniLab / R3 / UniTask / VContainer）には依存しない
 
 ## できること
@@ -25,18 +25,18 @@ Unity プロジェクトに入れると、AI はメールボックス（ファ�
 
 1. Unity プロジェクトへ導入（`Packages/manifest.json`）:
    ```json
-   "com.pisuke.testify": "https://github.com/MasaKoha/Testify.git"
+   "com.pisuke.unitestify": "https://github.com/MasaKoha/UniTestify.git"
    ```
    Unity 公式 CLI（`com.unity.pipeline`）を入れると `unity command ai_*` からも叩ける（任意）。
 2. Play を開始する前に、プロジェクト直下に `DebugOutput/agent-mailbox/.enabled` を置く（Python クライアントが自動で置く）。Play に入ると Unity 内蔵のメールボックスサーバが起動する
 3. AI（または人）からファイル経由で操作する:
    ```sh
-   python3 Packages/com.pisuke.testify/Tools/ai_client.py ping
-   python3 Packages/com.pisuke.testify/Tools/ai_client.py agent.begin '{"goal":{"freePlay":true,"maxSteps":5000,"maxSeconds":14400}}'
-   python3 Packages/com.pisuke.testify/Tools/ai_client.py agent.act '{"action":{"submit":"NewGameButton"}}'
-   python3 Packages/com.pisuke.testify/Tools/ai_client.py agent.find '{"label":"開始","kind":"Button"}'
-   python3 Packages/com.pisuke.testify/Tools/ai_client.py agent.observe '{"capture":"title"}'
-   python3 Packages/com.pisuke.testify/Tools/ai_client.py agent.end
+   python3 Packages/com.pisuke.unitestify/Tools/ai_client.py ping
+   python3 Packages/com.pisuke.unitestify/Tools/ai_client.py agent.begin '{"goal":{"freePlay":true,"maxSteps":5000,"maxSeconds":14400}}'
+   python3 Packages/com.pisuke.unitestify/Tools/ai_client.py agent.act '{"action":{"submit":"NewGameButton"}}'
+   python3 Packages/com.pisuke.unitestify/Tools/ai_client.py agent.find '{"label":"開始","kind":"Button"}'
+   python3 Packages/com.pisuke.unitestify/Tools/ai_client.py agent.observe '{"capture":"title"}'
+   python3 Packages/com.pisuke.unitestify/Tools/ai_client.py agent.end
    ```
    往復は 0.1 秒前後。`act` は対象が押せるまで待ち、落ち着いてから観測を返す。
 

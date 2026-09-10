@@ -9,7 +9,7 @@
 ```json
 {
   "dependencies": {
-    "com.pisuke.testify": "https://github.com/MasaKoha/Testify.git",
+    "com.pisuke.unitestify": "https://github.com/MasaKoha/UniTestify.git",
     "com.unity.inputsystem": "1.14.0"
   }
 }
@@ -20,7 +20,7 @@
 
 ### コピーして入れる（利用側で改造したい場合）
 
-リポジトリ直下の `Runtime/ Editor/ Pipeline/ Tests/ Tools/ package.json` を利用側の `Assets/Testify/` へ置く。karakuri-client はこの方式で、`rsync` で同期している（`architecture.md`）。
+リポジトリ直下の `Runtime/ Editor/ Pipeline/ Tests/ Tools/ package.json` を利用側の `Assets/UniTestify/` へ置く。karakuri-client はこの方式で、`rsync` で同期している（`architecture.md`）。
 
 ## 2. Play 中にメールボックスを起動する
 
@@ -29,13 +29,13 @@ AI クライアントは **ファイル I/O だけ** で Unity と話す（サ�
 起動方法は 3 つ（どれか 1 つ）:
 
 1. **自動起動**: Play を始める前に `DebugOutput/agent-mailbox/.enabled` を置く。`ai_client.py` は初回に自動で置く
-2. Editor メニュー `Testify/Mailbox/Start`（`Stop` で停止）
+2. Editor メニュー `UniTestify/Mailbox/Start`（`Stop` で停止）
 3. Unity 公式 CLI: `unity command ai_mailbox --start`（`--status` で間隔と最終処理時刻）
 
 ## 3. クライアントから操作する
 
 ```sh
-CLIENT=Packages/com.pisuke.testify/Tools/ai_client.py   # コピー導入なら Assets/Testify/Tools/ai_client.py
+CLIENT=Packages/com.pisuke.unitestify/Tools/ai_client.py   # コピー導入なら Assets/UniTestify/Tools/ai_client.py
 
 python3 $CLIENT ping
 python3 $CLIENT agent.begin '{"goal":{"freePlay":true,"maxSteps":5000,"maxSeconds":14400}}'
@@ -69,7 +69,7 @@ python3 $CLIENT agent.end
 
 ```csharp
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-using Testify;
+using UniTestify;
 
 public sealed class MyGameStateProvider : IGameStateProvider
 {
@@ -92,7 +92,7 @@ GameAdapterRegistry.CommandHandler = new MyGameCommandHandler(...); // 素材付
 
 | 症状 | 見るところ |
 |---|---|
-| `ok:false, error:"応答待ちがタイムアウト"` | Play 中か、`.enabled` を置いた後に Play を始めたか。`Testify/Mailbox/Start` で手動起動 |
+| `ok:false, error:"応答待ちがタイムアウト"` | Play 中か、`.enabled` を置いた後に Play を始めたか。`UniTestify/Mailbox/Start` で手動起動 |
 | `playMode が必要です` | `agent.*` は PlayMode 専用 |
 | `目標 JSON に期待値がありません` | `{"goal":{"freePlay":true}}` か `{"goal":{"goal":[{"kind":…}]}}` の形にする |
 | `submit 対象が見つかりません` | `agent.find` で名前を確認。同名行は `label:<部分一致>` で指定 |
