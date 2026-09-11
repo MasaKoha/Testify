@@ -77,7 +77,7 @@ Editor API 呼び出しはメールボックス側に限定する。フォーカ
 | `Runtime/Scenario/Expectations/` | 3 | シナリオ期待値、評価器、失敗理由 |
 | `Runtime/Scenario/Results/` | 3 | シナリオ全体・ステップの結果、証拠パス |
 | `Runtime/Snapshot/` | 6 | UI スナップショットの収集・保存・整形・比較と観測モデル |
-| `Runtime/Snapshot/Collection/` | 4 | シーン・要素・ゲーム状態の収集と観測モデルへの変換 |
+| `Runtime/Snapshot/Collection/` | 4 | シーン・要素・ゲーム状態の収集と観測モデルへの変換。TMP / legacy Text の文言を共通要素化 |
 | `Runtime/Snapshot/Comparison/` | 1 | UI スナップショットの差分判定 |
 | `Runtime/Snapshot/Output/` | 2 | 観測テキストの整形・JSON 保存 |
 | `Runtime/Input/` | 9 | 入力注入・記録・再生、イベント・待機アンカー・再生結果、入力の語彙 |
@@ -92,7 +92,7 @@ Editor API 呼び出しはメールボックス側に限定する。フォーカ
 | `Runtime/Recording/Session/` | 1 | 録画中の環境設定と復元 |
 | `Runtime/Forensics/` | 6 | 例外時の証拠収集、文脈・保留ログ、ファイルログ出力 |
 | `Runtime/Scene/` | 5 | シーン階層の収集・保存、コンパクトテキスト、シーン・ノード・ダンプモデル |
-| `Runtime/Ui/` | 9 | UI 入力対象の解決、可視判定・観測範囲・準備状態、スクロール、レイアウト監査 |
+| `Runtime/Ui/` | 9 | UI 入力対象の解決、TMP / legacy Text の可視判定・ラベル抽出、観測範囲・準備状態、スクロール、レイアウト監査 |
 | `Runtime/Adapters/` | 4 | ゲーム状態・busy・コマンドの接続契約と登録窓口 |
 | `Runtime/Core/` | 3 | 出力先、アセンブリ属性、SerializeField 結線情報 |
 | `Runtime/RunArchive/` | 3 | ラン概要と性能・視覚回帰の要約モデル |
@@ -130,7 +130,7 @@ Editor API 呼び出しはメールボックス側に限定する。フォーカ
 | `Tests/EditMode/Runtime/Scenario/` | 0 | シナリオ実装に対応するテストの親フォルダ |
 | `Tests/EditMode/Runtime/Scenario/Expectations/` | 1 | 非 UI オブジェクトの存在・不在の一回評価 |
 | `Tests/EditMode/Runtime/Scene/` | 1 | 階層テキストの深さ・件数制限とアクティブ状態 |
-| `Tests/EditMode/Runtime/Snapshot/` | 3 | `Runtime/Snapshot/` に対応する EditMode テスト |
+| `Tests/EditMode/Runtime/Snapshot/` | 4 | `Runtime/Snapshot/` に対応する EditMode テスト。legacy Text の収集・文字判定を含む |
 | `Tests/EditMode/Runtime/Recording/` | 0 | 録画実装に対応するテストの親フォルダ |
 | `Tests/EditMode/Runtime/Recording/Capture/` | 1 | `Runtime/Recording/Capture/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Recording/Output/` | 2 | `Runtime/Recording/Output/` に対応する EditMode テスト |
@@ -148,9 +148,10 @@ Editor API 呼び出しはメールボックス側に限定する。フォーカ
 既存スクリプトの `.meta` はスクリプトと対で移し、追加フォルダにも `.meta` を置く。
 
 テストは `Tests/EditMode/<実装アセンブリのルート>/<同じ機能パス>/` へ対応させる。
-現存する 29 ファイルのうち 28 ファイルは Runtime、1 ファイルは Editor 対象。
+現存する 30 ファイルのうち 29 ファイルは Runtime、1 ファイルは Editor 対象。
 Editor 操作の要求・応答テストは仕様指定の `Editor/Gateway/Mailbox/` に配置する。
-Tests asmdef は `UniTestify` と `UniTestify.Editor` を参照する。
+Tests asmdef は `UniTestify` と `UniTestify.Editor`、UI コンポーネントの検証用に `UnityEngine.UI` と `Unity.TextMeshPro` を参照する。
+Runtime asmdef も uGUI の型を直接利用するため `UnityEngine.UI` を明示参照する。
 Pipeline のテストを追加する場合も同じ対応規則に従い、テストのない機能に空フォルダは作らない。
 複数機能を検証する既存テストは主対象で配置する（`AgentExpectTest` は `Agent/Actions/`、
 `AgentExportTest` は `Agent/Session/`）。全ファイルの移動対応と判断は [実装記録](implementation.md) を参照。

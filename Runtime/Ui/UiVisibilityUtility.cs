@@ -198,18 +198,20 @@ namespace UniTestify
             for (var textIndex = 0; textIndex < textComponents.Length; textIndex++)
             {
                 var textComponent = textComponents[textIndex];
-                if (textComponent == null || !textComponent.enabled)
+                if (!IsSelectableLabel(textComponent, target))
                 {
                     continue;
                 }
 
-                if (HasOverlayMarkerAncestor(textComponent.transform))
-                {
-                    continue;
-                }
+                return Truncate(textComponent.text, maximumLength);
+            }
 
-                var closestSelectable = textComponent.GetComponentInParent<Selectable>();
-                if (closestSelectable == null || closestSelectable.gameObject != target)
+            // perf: TMP の候補がない場合だけ追加走査し、観測用の配列連結を避ける。
+            var legacyTextComponents = target.GetComponentsInChildren<Text>(false);
+            for (var textIndex = 0; textIndex < legacyTextComponents.Length; textIndex++)
+            {
+                var textComponent = legacyTextComponents[textIndex];
+                if (!IsSelectableLabel(textComponent, target))
                 {
                     continue;
                 }
@@ -218,6 +220,17 @@ namespace UniTestify
             }
 
             return string.Empty;
+        }
+
+        private static bool IsSelectableLabel(Graphic textComponent, GameObject target)
+        {
+            if (textComponent == null || !textComponent.enabled || HasOverlayMarkerAncestor(textComponent.transform))
+            {
+                return false;
+            }
+
+            var closestSelectable = textComponent.GetComponentInParent<Selectable>();
+            return closestSelectable != null && closestSelectable.gameObject == target;
         }
 
         /// <summary>

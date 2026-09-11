@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -7,7 +8,6 @@ using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
 namespace UniTestify
 {
     /// <summary>
@@ -16,6 +16,7 @@ namespace UniTestify
     public static class UiInputLocator
     {
         private const string LabelTargetPrefix = "label:";
+        private const float MinimumVisibleAlpha = 0.01f;
 
         /// <summary>
         /// パス末尾一致で GameObject を解決し、シナリオ JSON を短い名前で保つための入口です。
@@ -251,11 +252,8 @@ namespace UniTestify
         }
 
         /// <summary>
-        /// 文字待機を画像に頼らず実現し、TextMeshPro ベース UI のロード完了を同期するための判定です。
+        /// 文字待機を画像に頼らず実現し、TMP と legacy Text のロード完了を同期するための判定です。
         /// </summary>
-        /// <summary>これ以下の透明度は画面に出ていないものとして扱う下限です。</summary>
-        private const float MinimumVisibleAlpha = 0.01f;
-
         public static bool HasVisibleText(string expectedText)
         {
             if (string.IsNullOrEmpty(expectedText))
@@ -263,34 +261,36 @@ namespace UniTestify
                 return true;
             }
 
-            var texts = UnityEngine.Object.FindObjectsByType<TextMeshProUGUI>(FindObjectsInactive.Exclude);
+            var texts = UnityEngine.Object.FindObjectsByType<TextMeshProUGUI>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
             for (var textIndex = 0; textIndex < texts.Length; textIndex++)
             {
                 var text = texts[textIndex];
-                if (!text.isActiveAndEnabled)
+                if (IsVisibleTextMatch(text, text.text, expectedText))
                 {
-                    continue;
+                    return true;
                 }
+            }
 
-                if (string.IsNullOrEmpty(text.text))
+            // perf: TMP で一致した場合は legacy の走査を省き、配列を連結しない。
+            var legacyTexts = UnityEngine.Object.FindObjectsByType<Text>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            for (var textIndex = 0; textIndex < legacyTexts.Length; textIndex++)
+            {
+                var text = legacyTexts[textIndex];
+                if (IsVisibleTextMatch(text, text.text, expectedText))
                 {
-                    continue;
+                    return true;
                 }
-
-                if (!text.text.Contains(expectedText))
-                {
-                    continue;
-                }
-
-                if (!IsRendered(text))
-                {
-                    continue;
-                }
-
-                return true;
             }
 
             return false;
+        }
+
+        private static bool IsVisibleTextMatch(Graphic textObject, string text, string expectedText)
+        {
+            return textObject.isActiveAndEnabled
+                && !string.IsNullOrEmpty(text)
+                && text.Contains(expectedText)
+                && IsRendered(textObject);
         }
 
         /// <summary>
@@ -300,9 +300,14 @@ namespace UniTestify
         /// トーストがその典型で、表示が終わっても text は残るため、文字列の一致だけを見ると
         /// 「消えたあとも待機が成立する」偽陽性になります（実際に誤検知しました）。
         /// </summary>
-        private static bool IsRendered(TextMeshProUGUI text)
+        private static bool IsRendered(Graphic text)
         {
-            if (text.color.a <= MinimumVisibleAlpha || text.alpha <= MinimumVisibleAlpha)
+            if (text.color.a <= MinimumVisibleAlpha)
+            {
+                return false;
+            }
+
+            if (text is TMP_Text textMeshPro && textMeshPro.alpha <= MinimumVisibleAlpha)
             {
                 return false;
             }
@@ -416,11 +421,13 @@ namespace UniTestify
             return canvas.worldCamera;
         }
 
+        /// <summary>ラベル検索と観測候補で共通の比較用文字列を返します。</summary>
         internal static string NormalizeLabelText(string text)
         {
             return StripRichTextTags(text).Trim();
         }
 
+        /// <summary>表示ラベルから再利用可能なターゲット指定を組み立てます。</summary>
         internal static string CreateLabelTargetSpec(string label, int maximumLength)
         {
             var normalizedLabel = NormalizeLabelText(label);
