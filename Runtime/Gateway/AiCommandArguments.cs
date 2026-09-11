@@ -50,7 +50,7 @@ namespace UniTestify
         public string filter;
         /// <summary>成果物名です。</summary>
         public string name;
-        /// <summary>実行するシナリオのプロジェクト相対または絶対パスです。</summary>
+        /// <summary>シナリオの絶対パス、または Editor ではプロジェクト・実機では永続データ領域からの相対パスです。</summary>
         public string path;
         /// <summary>シナリオ完了を待つ実時間の上限です。</summary>
         public float scenarioTimeoutSeconds = DefaultScenarioTimeoutSeconds;

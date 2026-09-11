@@ -56,7 +56,8 @@ CLI は `Execute` を使う。単発 act は従来どおり即時の観測を返
 
 ## メールボックスのプロトコル
 
-既定ディレクトリは `<Application.dataPath の親>/DebugOutput/agent-mailbox`。
+既定ディレクトリは Editor では `<Unity プロジェクト>/DebugOutput/agent-mailbox`、
+実機 Development Build では `<Application.persistentDataPath>/DebugOutput/agent-mailbox`。
 
 1. クライアントは一意な ID（Python は UUID）で `req-<id>.json.tmp` を書いて閉じる。
 2. 同じディレクトリ内で `req-<id>.json` に rename して公開する。
@@ -392,7 +393,7 @@ freePlay の書き出しは従来どおり目標達成不要で、最終手へ�
 
 | op | 引数 | 応答 |
 |---|---|---|
-| `scenario.run` | `path` 必須（プロジェクト相対または絶対）、`name` 任意、`scenarioTimeoutSeconds` 既定 900 秒 | `path` は結果 JSON の絶対パス。同期は `status: "running"`、非同期は完了まで待ち `status: "completed"` と `verdict` を返す |
+| `scenario.run` | `path` 必須（Editor はプロジェクト相対、実機は persistentDataPath 相対、または絶対）、`name` 任意、`scenarioTimeoutSeconds` 既定 900 秒 | `path` は結果 JSON の絶対パス。同期は `status: "running"`、非同期は完了まで待ち `status: "completed"` と `verdict` を返す |
 | `scenario.status` | なし | 直前に開始した結果の `path`、`status`、`verdict`、`failedSteps`、`warningCount` |
 
 完了時の `scenario.run` も `failedSteps` と `warningCount` を返す。
@@ -463,3 +464,48 @@ JSON の省略値を確実に保持するため、ゲートウェイとセッシ
 `save:true` は全階層を `DebugOutput/scene/hierarchy-<yyyyMMdd-HHmmss-fff>.json` に保存して絶対パスを返す。
 深さ・件数・フィルタによる制限はテキストのみ。`save:false` の `path` は空。
 CLI は `Pipeline/Scene/AiSceneDumpCliCommand.cs` の `ai_scene_dump` から共通ディスパッチャを呼ぶ。
+
+
+## T5: Development Build の自律実行
+
+`DebugOutputPath.Resolve(bool isEditor, string projectRoot, string persistentDataPath)` は
+Editor の `<projectRoot>/DebugOutput` と実機の `<persistentDataPath>/DebugOutput` を純関数で切り替える。
+`DirectoryPath` は `Application.isEditor` で分岐する。
+`ResolveRelative(string relativeOrAbsolute)` は Editor でプロジェクトルート、実機で `persistentDataPath` を基準とし、
+絶対パスはそのまま正規化する。`AiCaptureSupport.Request` の `outputDirectory`（op 引数名は `directory`）と
+`AiScenarioExecution.Start` のシナリオ `path` はこの共通解決を使う。
+
+`ScenarioAutorun` は `AfterSceneLoad` で一度だけ起動設定を読む。
+`Resources.Load<UniTestifySettings>("UniTestifySettings")` のビルド設定を基に、
+`DebugOutput/scenario-autorun.json` の指定フィールドを上書きする。
+Standalone / Editor では起動引数 `-unitestify-scenario <path>` をさらに適用する（パスのみ）。
+`AiMailboxServer` や `.enabled` を必要とせず、op は追加しない。
+
+| 設定元 | フィールドと既定値 |
+|---|---|
+| `Runtime/Resources/UniTestifySettings.asset` | `autorunScenarioPath:""` / `autorunDelaySeconds:2` |
+| `scenario-autorun.json` | `path` / `name` / `delaySeconds`。省略項目はビルド設定を維持し、name は空を既定とする |
+
+`path` / `name` は文字列、`delaySeconds` は有限の 0 以上の数値。
+空のパスでは実行しない。0 秒の明示指定は待機なし。名前の省略・空文字はシナリオファイル名から補う。
+不正な設定はログを出して中止し、黙ってビルド時の別シナリオを実行しない。
+設定は別の一時オブジェクトへ読み込み、Resources のアセットは変更しない。
+
+実時間で待機後、既存入口と同じ `UiScenarioJsonPresence.Apply` を通して `UiScenarioRunner.Run` を開始する。
+結果保存先は `DebugOutput/scenario-results/<name>-<日時>-<識別子>/result.json`。
+既存メニュー／`scenario.run` の `<name>.json` と `ScenarioResult` のスキーマは維持する。
+実行中はランナーの生存確認だけとし、結果 JSON の読み込みは終了後の一回。
+空シナリオが `Run` の内部で同期完了しても、起動後のイベント購読に依存しないため完了を取りこぼさない。
+
+完了時は `DebugOutput/scenario-autorun.done.json` に次の形式で保存する:
+
+```json
+{"path":"<結果 JSON の絶対パス>/result.json","verdict":"pass"}
+```
+
+`verdict` は結果ファイルの `pass` / `fail` / `error` をそのまま写す。
+前回の完了ファイルは自律実行の待機開始前に削除し、今回の通知は一時ファイルを閉じてから移動して公開する。
+読み込み・起動・保存に失敗した場合は
+`[ScenarioAutorun]` のログを残し、完了ファイルは生成しない。設定は消費せず、次の起動でも再実行する。
+シナリオ本体の配布・Android の `StreamingAssets` 読み込みは含まない。
+仮想 `Touchscreen` の入力と Editor／Android 間の verdict 一致は依頼者が実機確認する。

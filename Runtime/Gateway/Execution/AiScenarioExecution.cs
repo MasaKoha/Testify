@@ -24,8 +24,7 @@ namespace UniTestify
                 return new AiCommandResponse { op = "scenario.run", message = "playMode が必要です" };
             }
 
-            var projectDirectory = Path.GetDirectoryName(Application.dataPath);
-            var scenarioPath = Path.GetFullPath(Path.Combine(projectDirectory, arguments.path));
+            var scenarioPath = DebugOutputPath.ResolveRelative(arguments.path);
             var scenarioJson = File.ReadAllText(scenarioPath);
             AiJsonObject.Parse(scenarioJson);
             var scenario = JsonUtility.FromJson<UiScenario>(scenarioJson);

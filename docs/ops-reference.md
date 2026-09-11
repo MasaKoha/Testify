@@ -44,12 +44,34 @@ Play 停止中も使う [Editor メールボックス](#editor-メールボッ�
 | `agent.goal` | – | 目標達成状態 |
 | `agent.end` | – | セッション終了（`session.json` / `actions.jsonl` を確定） |
 | `agent.export` | `name` | セッションの手順を回帰シナリオ `scenario.json` に書き出す。`expect` 付きの手はそのまま、未達だった手は `comment` 付き |
-| `scenario.run` | `path`（プロジェクト相対 or 絶対）, `name`, `scenarioTimeoutSeconds`(900) | シナリオ実行。非同期経路は完了まで待って `verdict` を返す |
+| `scenario.run` | `path`（Editor はプロジェクト相対、実機は persistentDataPath 相対、または絶対）, `name`, `scenarioTimeoutSeconds`(900) | シナリオ実行。非同期経路は完了まで待って `verdict` を返す |
 | `scenario.status` | – | 直前のシナリオの状態 |
 | `capture` | `name`（必須。英数字・`_`・`-`）, `directory`（既定 `DebugOutput/captures`）, `view`（`""` 既定 / `game` / `simulator`） | 画面を PNG に。`view` で Game View / Device Simulator を指定できる |
 | `snapshot` | `compact`(true), `save` | UI スナップショット（`all` 相当。ツール用） |
 | `scene.dump` | `depth`(3), `maxNodes`(200), `filter`（名前の部分一致、任意）, `save`(false) | シーン階層のコンパクトテキスト。`save` で全階層 JSON を `DebugOutput/scene/` に保存し `path` を返す |
 | `console` | `count`(40), `level`（`all` / `error`） | Unity コンソールの末尾。Error/Exception はスタックトレース先頭 3 行付き |
+
+## 実機のパスと自律実行
+
+`DebugOutputPath.DirectoryPath` は Editor で `<Unity プロジェクト>/DebugOutput`、
+実機 Development Build で `<Application.persistentDataPath>/DebugOutput`。
+`capture` / `agent.observe` の `directory` と `scenario.run` の `path` は、
+Editor ではプロジェクトルート、実機では `persistentDataPath` を基準に相対解決する。絶対指定も可。
+
+自律実行は op を追加せず、起動シーン読み込み後に独立して始まる。`.enabled` は不要。
+`Resources/UniTestifySettings.asset` の `autorunScenarioPath`（空なら無効）と
+`autorunDelaySeconds`（既定 2 秒）に、`DebugOutput/scenario-autorun.json` の
+`path` / `name` / `delaySeconds` の指定項目を上書きする。
+Standalone / Editor の `-unitestify-scenario <path>` はさらにパスだけを上書きする。
+完了通知は `DebugOutput/scenario-autorun.done.json`:
+
+```json
+{"path":"<結果ディレクトリ>/result.json","verdict":"pass"}
+```
+
+`path` は絶対パス、`verdict` は既存の結果 JSON と同じ `pass` / `fail` / `error`。
+結果 JSON 自体と既存 op の応答フィールドは変更しない。
+配置・取得の手順と既定値の詳細は [実機での使い方](getting-started.md#5-実機-development-build-で自律実行する) を参照。
 
 ## Editor メールボックス
 
