@@ -284,6 +284,21 @@ CLI の撮影は従来どおり PNG の生成完了を待たず、`width=height=
 `OnPointerClick` だけで反応する UI は `submit` ではなくこれを使う。
 例: `agent.act {"action":{"click":"InventoryPanel/ItemCard0"}}`、タッチなら `{"action":{"tap":"InventoryPanel/ItemCard0"}}`。
 
+### Editor のポインタ入力とフォーカス
+
+`agent.act` とシナリオの **`pointerMove` / `click` / `scroll` / `tap` / `drag` / `swipe` / `pinch` は Game View にフォーカスが必要**。
+Editor の既定の Input System 設定では、非フォーカス時にデバイスの state が更新されても、
+`InputSystemUIInputModule` のアクションへポインタ入力が伝播せず、UI に届かない。
+
+送出前に `InputInjector.IsPointerInputAvailable` を検査する。Editor では `Application.isFocused` を使い、
+`false` なら入力を送信せず、原因と再実行手順を返す。**Unity を前面にして Game View にフォーカスを合わせてから再実行すること。**
+`agent.act` は既存の応答本文（`text` 内の `message`）と行動ログの `message` に理由を残す。
+最上位の `ok` と `message` は既存の扱いのため、`ok:true` だけで入力が届いたと判断しないこと。
+シナリオは `failures` に `kind:"input"` と行動種別・理由を記録し、ステップを `fail` にする。`allowNoChange:true` でもこの失敗は許容しない。
+
+**キーボード・ゲームパッド系の `press` / `hold` / `key` / `move` / `stick` / `text` と `submit` は、このフォーカス検査を受けない。**
+`scrollTo` と待機だけの行動も対象外。実機の Development Build では同プロパティは常に `true` で、この Editor 固有の検査では止めない。
+
 ### 行動前の待機
 
 メールボックスの `agent.act` は `UiScenarioStepReader.CreateAnchor` と
