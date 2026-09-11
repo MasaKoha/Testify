@@ -1,5 +1,9 @@
 # はじめかた
 
+本ライブラリを初めて導入し、環境構築から基本的な動作確認までを順に進める際に読むページである。
+パッケージの導入手順から、外部からの操作、ゲーム内状態の観測登録、実機ビルドでの自律実行と接続方法までを網羅している。
+手順通りに進めることで、画面の構造化テキスト変換とそれを用いた基本操作を一通り実現できるようになる。
+
 ## 1. 導入
 
 ### パッケージとして入れる（推奨）
@@ -20,7 +24,7 @@
 
 ### コピーして入れる（利用側で改造したい場合）
 
-リポジトリ直下の `Runtime/ Editor/ Pipeline/ Tests/ Tools/ package.json` を利用側の `Assets/UniTestify/` へ置く。karakuri-client はこの方式で、`rsync` で同期している（`architecture.md`）。
+リポジトリ直下の `Runtime/ Editor/ Pipeline/ Tests/ Tools/ package.json` を利用側の `Assets/UniTestify/` へ置く。継続的に追従するなら `rsync` で同期する（`architecture.md`）。
 
 ## 2. Play 中にメールボックスを起動する
 
@@ -99,7 +103,7 @@ python3 $CLIENT agent.end
 ### Codex から
 
 - localhost に届かないサンドボックスではメールボックスを使う。ネットワークが許可されたホストから実機へ接続する場合は HTTP を使える。Codex には「このクライアントだけを使う。Unity を起動・終了しない」と指示する
-- 指示書のひな形は利用側リポジトリに置く（karakuri: `tools/codex_playtest/brief_*.md`）。「どの画面を辿るか」「何を報告するか」を書き、Codex は `observe` の文字を根拠に判断する
+- 指示書のひな形は利用側リポジトリに置く。「どの画面を辿るか」「何を報告するか」を書き、AI は `observe` の文字を根拠に判断する
 
 ## 4. ゲーム側の状態を観測に載せる（任意だが強く推奨）
 

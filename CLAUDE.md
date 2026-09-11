@@ -1,6 +1,6 @@
 # CLAUDE.md — UniTestify
 
-AI エージェント（Claude Code / Codex）が Unity ゲームを動かして検証するためのツール群。旧 `UniLab.AI`。
+AI エージェント（Claude Code / Codex）が Unity ゲームを動かして検証するためのツール群。
 
 ## このリポジトリの構成
 
@@ -21,15 +21,14 @@ AI エージェント（Claude Code / Codex）が Unity ゲームを動かして
 | `Tests/EditMode/` | asmdef を維持。`Runtime/`・`Editor/` の実装と同じ機能パスへ純ロジックのテストを対応配置 |
 | `Tools/ai_client.py` | 標準ライブラリだけの共通クライアント（既定 file、実機向け http） |
 | `TestProject/` | テスト実行用の最小 Unity プロジェクト。`Packages/manifest.json` がこのパッケージを `file:../../` で参照する |
-| `docs/` | 利用者向け解説。`docs/design/` は設計書（判断の記録） |
+| `docs/` | 利用者向け解説 |
 
 フォルダ直下の C# は上限 10。名前空間は据え置き、スクリプトと `.meta` は必ず対で移す。
 各フォルダの詳細とテストの対応規則は [構成表](docs/architecture.md#フォルダ構成)、
-移動ファイル一覧・件数・確認結果は [実装記録](docs/implementation.md) を参照。
 
 ## 守ること（設計の鉄則）
 
-1. **ゲーム本体のライブラリに依存しない。** UniLab / R3 / UniTask / VContainer を参照しない。依存は `UnityEngine`・.NET 標準・`Unity.TextMeshPro`・`Unity.InputSystem` に限る
+1. **ゲーム本体で使う類のライブラリに依存しない。** Rx 実装・非同期ライブラリ・DI コンテナを参照しない。依存は `UnityEngine`・.NET 標準・`Unity.TextMeshPro`・`Unity.InputSystem` に限る
 2. **名前空間は `UniTestify`**（`UniTestify.Editor` / `UniTestify.Pipeline` / `UniTestify.Tests`）。`Debug` という語を名前空間に使わない（`UnityEngine.Debug` と衝突した前例）
 3. **毎フレーム処理でアロケーションを増やさない。** `AiMailboxServer.Update` など常駐処理には `GetComponent` / LINQ / `new` を足さない。観測時（`UiSnapshot.Capture`）だけは可。意図は `// perf:` で残す
 4. **op は `AiCommandDispatcher` だけに足す。** CLI（`Pipeline/`）とメールボックスは同じディスパッチャを呼ぶ。片方だけに機能を足さない
@@ -48,7 +47,7 @@ AI エージェント（Claude Code / Codex）が Unity ゲームを動かして
 1. `develop` から `feature/…` / `fix/…` / `refactor/…` を切る。`develop` 直コミット禁止、PR 経由（squash）
 2. 実装は Codex に委譲してよい（`codex_run.sh` 経由）。**Codex に Unity を起動させない。** コンパイル・テストはこちらで:
    - `TestProject/` を Unity で開いて Test Runner（EditMode）を回す。または利用側プロジェクトへ同期して `recompile` → テスト
-3. 利用側（例: karakuri-client の `Assets/UniTestify/`）へは `rsync` で同期し、利用側でも PR を作る（同期先の手順は `docs/architecture.md`）
+3. コピー導入している利用側の `Assets/UniTestify/` へは `rsync` で同期し、利用側でも PR を作る（手順は `docs/architecture.md`）
 4. 実機確認は利用側の PlayMode で行い、確認したら **必ず Play を止める**
 
 ## 既知の罠

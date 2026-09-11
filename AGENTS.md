@@ -1,11 +1,11 @@
 # AGENTS.md — UniTestify（Codex 向け）
 
-このリポジトリは、AI エージェントが Unity ゲームを動かして検証するためのツール群（旧 UniLab.AI）。Codex はここで **実装だけ**を担当する。設計・レビュー・コンパイル・テスト・実機確認は依頼者（Claude Code）が行う。
+このリポジトリは、AI エージェントが Unity ゲームを動かして検証するためのツール群。Codex はここで **実装だけ**を担当する。設計・レビュー・コンパイル・テスト・実機確認は依頼者（Claude Code）が行う。
 
 ## 絶対に守ること
 
 - **Unity を起動しない。`dotnet build` もしない。** コンパイルとテストは依頼者が `TestProject/` または利用側プロジェクトで行う
-- ゲーム本体のライブラリ（UniLab / R3 / UniTask / VContainer）に依存しない。依存は `UnityEngine`・.NET 標準・`Unity.TextMeshPro`・`Unity.InputSystem` のみ
+- ゲーム本体で使う類のライブラリ（Rx 実装・非同期ライブラリ・DI コンテナ）に依存しない。依存は `UnityEngine`・.NET 標準・`Unity.TextMeshPro`・`Unity.InputSystem` のみ
 - 名前空間は `UniTestify`。`Debug` という語を名前空間に使わない
 - op を足すときは `AiCommandDispatcher` に足す（CLI とメールボックスは同じディスパッチャを呼ぶ）。片方だけに機能を足さない
 - 観測テキスト・成果物 JSON の形式を変えるときは `docs/ops-reference.md` と設計書 12 を同時に更新し、既存テストの期待値を意図をもって直す
