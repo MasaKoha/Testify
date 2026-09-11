@@ -251,3 +251,110 @@ C# のバイト列は維持し、ロジック、コメント、namespace、using
    理由はデバイス寿命と各入力系列の状態遷移で変更理由が異なるため。押下解除と Dispose の順序は入口で統括する。
 4. `UiScenarioRunner`（513 行）は、ステップ進行、準備・シーン待機、結果／失敗の蓄積、中断・終了時の後処理を分けるべき。
    理由は実行順序と待機条件と証拠・結果の確定を独立して読めるため。既存の実行セッション境界を維持する。
+
+## 2026-09-11 — T1 撮影対象指定・T7 ターゲット指定と待機の明文化
+
+### 変更内容
+
+指定済みの `feature/capture-view-and-docs` を前提に作業し、ブランチ変更・ステージング・コミットは行っていない。
+T1 は `capture` / `agent.observe` に `view`（空 / `game` / `simulator`）を追加し、不正値を
+`ArgumentException` で拒否する。ディスパッチャの既存の例外処理により、外部には `ok:false` / `error` を返す。
+応答に今回適用した `view` を追加する。新規 op はない。
+
+Editor が `FocusHandler` を登録し、全ロード済みアセンブリから対象ウィンドウの型を探す。
+メールボックスの要求処理はフォーカス → 解像度の安定待ち → 従来処理の順とし、
+`Screen.width/height` が 2 フレーム連続で変化しなくなるまで、最大 5 フレーム待つ。
+待機は観測前に限定し、観測と撮影要求の間では yield しない。
+Handler 未登録・対象の型やウィンドウが利用不能・バッチモードでは従来処理を続け、
+`view:""` と `message` の補足を返す。
+
+同期 CLI の `--view` 適用成功時はフォーカスだけを行う。フレーム反映後、次の呼び出しで
+`--view` を省略して撮影・観測する。適用不能時または未指定時は従来処理を維持する。
+`width` / `height` は既存どおり非同期 PNG 読込時に実寸を返し、同期経路では 0。
+
+T7 は文書のみ。`click` / `tap` がターゲット名を受け RectTransform 中心へ送ること、
+`OnPointerClick` だけで反応する UI で使うこと、アンカーが成立まで待つこと、
+ランナーが対象の準備を自動で待つため外部の存在確認ポーリングが不要であることを記載した。
+
+### 仕様表と現物の差異・対応
+
+| 箇所 | 現物 | 対応 |
+|---|---|---|
+| `AiMailboxServer` の要求処理 | 実行・フレーム待機は `AiCommandDispatcher.ExecuteAsync` へ委譲済み | 既存の委譲先にフォーカスと安定待ちを追加した。サーバー本体と毎フレームの `Update` は変更していない |
+| Editor から internal Handler を登録 | Runtime の `InternalsVisibleTo` はテストアセンブリだけ | `Runtime/Core/AssemblyInfo.cs` に `UniTestify.Editor` を追加した |
+| CLI の引数転送 | `AiCommandArguments` とは別に `AiCliArguments` で JSON を生成 | 転送モデルにも `view` を追加した |
+| `AiAgentObserveCliCommand` | 公開引数は `diffOnly` のみ。`capture` / `directory` / `scope` は未公開 | 指定どおり `--view` だけを追加。CLI の撮影は次回の `ai_capture`、同一要求での観測＋撮影はメールボックスと文書に明記した |
+| 構成表の既存件数 | 直前の責務分割で追加されたフォルダ行が未掲載。テスト実数は 20 ではなく 24 | T1 の 3→4・0→1・テスト 2→3 に加え、既存フォルダの掲載漏れとテスト件数を実数へ修正した。今回追加後のテストは 25 ファイル |
+
+### 追加・変更ファイル一覧
+
+| ファイル | 種別 | 内容 |
+|---|---|---|
+| `Runtime/Gateway/Execution/AiPlayModeViewFocus.cs` | 追加 | Handler、view 検証、フォーカス仲介、解像度の安定待ち |
+| `Runtime/Gateway/Execution/AiPlayModeViewFocus.cs.meta` | 追加 | 新規 C# の GUID |
+| `Editor/Gateway/PlayModeViewFocus.cs` | 追加 | Editor 起動時の登録、型検索とウィンドウのフォーカス |
+| `Editor/Gateway/PlayModeViewFocus.cs.meta` | 追加 | 新規 C# の GUID |
+| `Tests/EditMode/Runtime/Gateway/Execution/AiPlayModeViewFocusTest.cs` | 追加 | Handler と同期フォーカスの契約テスト |
+| `Tests/EditMode/Runtime/Gateway/Execution/AiPlayModeViewFocusTest.cs.meta` | 追加 | 新規テストの GUID |
+| `Runtime/Core/AssemblyInfo.cs` | 変更 | Editor アセンブリから internal 登録口へのアクセス |
+| `Runtime/Gateway/AiCommandArguments.cs` | 変更 | 入力 `view` |
+| `Runtime/Gateway/AiCommandContext.cs` | 変更 | 対象 op の view 検証と internal メンバーの summary |
+| `Runtime/Gateway/AiCommandDispatcher.cs` | 変更 | 同期のフォーカスのみ応答、非同期の観測前待機、適用結果と補足 |
+| `Runtime/Gateway/AiCommandResponse.cs` | 変更 | 応答 `view` |
+| `Pipeline/Gateway/AiCliArguments.cs` | 変更 | CLI から view の転送 |
+| `Pipeline/Gateway/Execution/AiCaptureCliCommand.cs` | 変更 | `ai_capture --view` |
+| `Pipeline/Agent/AiAgentObserveCliCommand.cs` | 変更 | `ai_agent_observe --view` |
+| `Tests/EditMode/Runtime/Gateway/AiCommandArgumentsTest.cs` | 変更 | view の省略値と不正値 |
+| `Tests/EditMode/Runtime/Gateway/AiCommandDispatcherTest.cs` | 変更 | 同期・非同期入口の不正 view 応答 |
+| `Tests/EditMode/Runtime/Gateway/Mailbox/AiMailboxProtocolTest.cs` | 変更 | 既存の JSON 往復テストで view を検証 |
+| `docs/ops-reference.md` | 変更 | 引数・応答・CLI 運用と click / tap の対象指定 |
+| `docs/scenario-guide.md` | 変更 | click / tap の例、アンカーと自動準備待ちの指針 |
+| `docs/architecture.md` | 変更 | フォーカス経路と実ファイル数の構成表 |
+| `docs/design/design-unilab-ai-12-ai-gateway.md` | 変更 | view の引数・応答契約と同期／非同期の処理順 |
+| `docs/implementation.md` | 変更 | 本記録 |
+
+### 追加したテスト名
+
+追加は 9 メソッド（TestCase 展開後 22 ケース）。実行していない。
+
+| テストクラス | 追加したメソッド |
+|---|---|
+| `AiPlayModeViewFocusTest` | `MissingHandlerReturnsFalse`、`EmptyViewDoesNotInvokeHandler`、`RegisteredHandlerReceivesViewAndReturnsResult`、`InvalidViewThrowsArgumentException`、`SynchronousCaptureWithViewOnlyFocuses` |
+| `AiCommandArgumentsTest` | `ViewDefaultsToEmpty`、`InvalidViewThrowsArgumentException` |
+| `AiCommandDispatcherTest` | `InvalidViewReturnsFailure`、`AsyncInvalidViewReturnsFailure` |
+
+既存の `AiMailboxProtocolTest.RequestAndResponseRoundTrip` は `view:"simulator"` の往復を期待値へ追加した。
+旧 `AgentCommandResult` による読み取り確認は維持し、追加フィールドが既存本文・成果物パスを壊さない契約を残した。
+Handler を差し替えるテストは元の登録を退避・復元し、`Parallelizable(ParallelScope.None)` で並列実行しない。
+ローカルの Unity 同梱 NUnit は `NonParallelizable` が未収録のため、収録されている属性・列挙値に合わせた。
+
+### 静的確認結果
+
+- 変更・追加 C# のライフサイクル／コンポーネント API 検索に追加対象のヒットなし。ゲーム用ライブラリへの依存追加なし。
+- 新規 `.cs` と `.cs.meta` は 3 組。既存 `.meta` の変更なし、既存を含む GUID の重複なし。
+- Runtime / Pipeline の条件付きコンパイル、内部型の namespace とアセンブリ参照、EditorWindow 等のローカル API 定義を確認した。
+- 構成表の全掲載行の C# 数が実数と一致し、C# を持つフォルダの掲載漏れなし。
+  全体は Runtime 133、Editor 32、Pipeline 18、EditMode 25。各フォルダは上限 10 以下。
+- T7 の対象となる入力・ターゲット解決・シナリオ実行コードは変更していない。
+
+### 未実行の確認事項・依頼者の受け入れ確認
+
+Unity の起動・インポート・コンパイル、`dotnet build`、EditMode / PlayMode テストは実行していない。
+以下は依頼者による実機確認が必要。
+
+1. Game View を任意のアスペクトに設定し、前面状態を変えて `capture {"name":"a","view":"simulator"}` を送る。
+   PNG と `width` / `height` が Device Simulator の解像度になり、`view:"simulator"` を返すこと。
+2. `view:"game"` で Game View の解像度へ戻ること。`view` 未指定・空の場合は従来の撮影対象と挙動を維持すること。
+3. 開始済みのセッションで `agent.observe {"capture":"b","view":"simulator"}` を送り、
+   安定待ち後に観測と撮影要求が同一フレームで発行され、本文・PNG・view が揃うこと。
+4. フォーカス後の寸法変更が複数フレーム続く状況でも、連続安定または最大 5 フレームまで観測を始めないこと。
+5. 対象が利用できない環境・Handler 未登録時に従来の撮影を試み、`view:""` と理由付き `message` を返すこと。
+   撮影自体の完了・タイムアウトは既存の撮影機能の条件に従う。
+6. Pipeline 有効環境で `ai_capture --name a --view simulator` はフォーカスだけを行い、
+   フレーム反映後の `ai_capture --name a` で PNG が生成されること。`ai_agent_observe --view` も同じ二段階で観測すること。
+7. 追加 EditMode テストと既存の JSON 往復テストを実行すること。
+
+### 提案（このランでは未実装）
+
+1. 同名要素で実際に曖昧な選択が必要になった時点で `path#index` を別タスクにすべき。
+   理由は `FindByPathSegment` が最初の一致を返すため。今回の T7 では記法も検索実装も追加しない。

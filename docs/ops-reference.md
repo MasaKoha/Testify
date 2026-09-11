@@ -25,6 +25,7 @@
 | `ready` / `waitedMs` | `submit`/`click`/`tap` の対象が押せるまで待って押せたか、待った実時間 |
 | `elapsedMs` | 要求受理から応答までの実時間 |
 | `width` / `height` / `blank` | 撮影の画像サイズと白紙判定（輝度の標準偏差 3.0 未満） |
+| `view` | 今回フォーカスを適用した `game` / `simulator`。未指定・適用不能時は空文字列 |
 | `expectOk` / `expectFailures` | `expect` の判定結果と未達の理由 |
 | `status` / `verdict` / `failedSteps` / `warningCount` | シナリオ実行の状態と合否 |
 
@@ -35,7 +36,7 @@
 | `ping` | – | `playMode=<bool> scene=<name> frame=<n>` |
 | `ops` | – | op 名の一覧 |
 | `agent.begin` | `goal`（必須）, `options` | セッション開始。`goal` は `{"freePlay":true,"maxSteps":5000,"maxSeconds":14400}` か `{"goal":[{"kind":"textVisible","value":"…"}],"maxSteps":…}`。期待値 0 件で freePlay でもない目標は拒否。`options`: `{"stuckRepeatLimit":40,"inputMode":"gamepad","settleFrames":1}` |
-| `agent.observe` | `diffOnly`, `scope`（`visible` 既定 / `all`）, `capture`（撮影名）, `directory` | 観測テキスト。`capture` を付けると同じフレームで撮影し `path/width/height/blank` を埋める |
+| `agent.observe` | `diffOnly`, `scope`（`visible` 既定 / `all`）, `capture`（撮影名）, `directory`, `view`（`""` 既定 / `game` / `simulator`） | 観測テキスト。`capture` を付けると同じフレームで撮影し `path/width/height/blank` を埋める。`view` の経路別動作は下記 |
 | `agent.act` | `action` または `steps[]`, `expect[]`, `settleSeconds`(0.35), `settleTimeoutSeconds`(10), `readyTimeoutSeconds`(5) | 1 手または複数手。各手: 準備待ち → 実行 → 落ち着き待ち → 観測。`steps` は `status` が `running` 以外か `expect` 未達で打ち切り |
 | `agent.find` | `label`, `kind`（Button/Text/Toggle/Input/Selectable）, `scope` | ラベル部分一致で要素検索。1 行 1 件、末尾に推奨の `submit:"…"` |
 | `agent.goal` | – | 目標達成状態 |
@@ -43,9 +44,44 @@
 | `agent.export` | `name` | セッションの手順を回帰シナリオ `scenario.json` に書き出す。`expect` 付きの手はそのまま、未達だった手は `comment` 付き |
 | `scenario.run` | `path`（プロジェクト相対 or 絶対）, `name`, `scenarioTimeoutSeconds`(900) | シナリオ実行。非同期経路は完了まで待って `verdict` を返す |
 | `scenario.status` | – | 直前のシナリオの状態 |
-| `capture` | `name`（必須。英数字・`_`・`-`）, `directory`（既定 `DebugOutput/captures`） | Game View を PNG に |
+| `capture` | `name`（必須。英数字・`_`・`-`）, `directory`（既定 `DebugOutput/captures`）, `view`（`""` 既定 / `game` / `simulator`） | 画面を PNG に。`view` で Game View / Device Simulator を指定できる |
 | `snapshot` | `compact`(true), `save` | UI スナップショット（`all` 相当。ツール用） |
 | `console` | `count`(40), `level`（`all` / `error`） | Unity コンソールの末尾。Error/Exception はスタックトレース先頭 3 行付き |
+
+## 撮影・観測対象（`view`）
+
+`capture` と `agent.observe` が受ける。`"game"` は Game View、`"simulator"` は Device Simulator。
+未指定・`""` は従来どおり前面の PlayModeView を使う。不正値は `ArgumentException` とし、
+ディスパッチャが `ok:false` と `error` に変換する。
+
+メールボックスでは `TryFocus` → `Screen.width/height` の安定待ち → 観測・撮影の順。
+寸法が 2 フレーム連続して変化しなくなるまで、最大 5 フレーム待つ。上限に達した場合も従来処理へ進む。
+待つのは観測の前だけで、`agent.observe` の観測から撮影要求の間には yield を挟まない。
+
+```sh
+python3 Tools/ai_client.py capture '{"name":"a","view":"simulator"}'
+python3 Tools/ai_client.py agent.observe '{"capture":"b","view":"game"}'
+```
+
+対象の型・ウィンドウが利用できない場合、バッチモード、Handler 未登録時は、フォーカス不能を理由に失敗させず、
+従来の対象で処理する。応答は `view:""`、`message` に適用できなかった理由を含む。
+成功時の `view` は今回適用した値であり、`view` 未指定時に現在の前面ウィンドウを推定して返すものではない。
+
+**同期 CLI は `--view` の適用成功時、フォーカスだけを行う。** その呼び出しでは撮影・観測を行わず、
+`view` と次回呼び出しの案内を返す（`path` / `text` は空、`width=height=0`）。
+Editor のフレーム反映後、次の呼び出しで `--view` を省略して撮影・観測する。
+フォーカス不能時はメールボックスと同じく従来処理へ進む。フォーカス不要なら最初から `--view` を省略する。
+
+```sh
+unity command ai_capture --name a --view simulator
+# Editor のフレーム反映後に、同じコマンドを view なしで呼ぶ。
+unity command ai_capture --name a
+```
+
+`ai_agent_observe` も `--view` を受け、適用後は次の `ai_agent_observe` を `--view` なしで呼ぶ。
+同 CLI の既存引数は `--diffOnly` のみで、`capture` / `directory` / `scope` は公開していない。
+CLI で PNG が必要なら次の `ai_capture` を使う。観測と撮影を一要求にまとめる場合はメールボックスの `agent.observe` を使う。
+CLI の撮影は従来どおり PNG の生成完了を待たず、`width=height=0` / `blank=false` を返す。
 
 ## 行動（`action`）の語彙
 
@@ -63,6 +99,10 @@
 | `pinch` + `center` `fromDistance` `toDistance` | | ピンチ |
 | `scrollTo` | `"MarketRuneListRow8"` | 祖先 ScrollRect の表示範囲へ入れる（フォーカスは動かさない） |
 | `reason` | | 行動理由（`actions.jsonl` に残る） |
+
+`click` / `tap` はターゲット名を受け、対象の **RectTransform 中心へ** ポインタ・タッチ入力を送る。
+`OnPointerClick` だけで反応する UI は `submit` ではなくこれを使う。
+例: `agent.act {"action":{"click":"InventoryPanel/ItemCard0"}}`、タッチなら `{"action":{"tap":"InventoryPanel/ItemCard0"}}`。
 
 ## 事後条件（`expect`）の語彙
 

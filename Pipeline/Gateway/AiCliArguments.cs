@@ -11,6 +11,8 @@ namespace UniTestify.Pipeline
         public string name;
         /// <summary>保存先です。</summary>
         public string directory;
+        /// <summary>フォーカスを適用する撮影・観測対象です。</summary>
+        public string view;
         /// <summary>差分観測を指定します。</summary>
         public bool diffOnly;
         /// <summary>圧縮形式を指定します。</summary>

@@ -9,9 +9,12 @@ namespace UniTestify
     internal sealed class AiCommandContext
     {
         private readonly Dictionary<string, string> _members;
+        /// <summary>省略値を補った共通引数です。</summary>
         internal AiCommandArguments Arguments { get; }
+        /// <summary>要求された操作名です。</summary>
         internal string Operation { get; }
 
+        /// <summary>実行前に JSON と操作固有の引数を検証します。</summary>
         internal AiCommandContext(AiCommandRequest request)
         {
             if (request == null)
@@ -25,12 +28,18 @@ namespace UniTestify
             Arguments = new AiCommandArguments();
             JsonUtility.FromJsonOverwrite(json, Arguments);
             AiCommandArguments.ValidateDuration(Arguments.readyTimeoutSeconds, nameof(Arguments.readyTimeoutSeconds), false);
+            if (Operation == "capture" || Operation == "agent.observe")
+            {
+                AiPlayModeViewFocus.Validate(Arguments.view);
+            }
+
             if (Operation == "agent.observe" || Operation == "agent.find")
             {
                 UiObservationScope.Validate(Arguments.scope);
             }
         }
 
+        /// <summary>入れ子の JSON オブジェクトを必須条件とともに検証します。</summary>
         internal string GetObject(string name, bool required = false)
         {
             if (!_members.TryGetValue(name, out var json))
@@ -47,6 +56,7 @@ namespace UniTestify
             return json;
         }
 
+        /// <summary>単一行動と一括行動を同じ実行単位へ揃えます。</summary>
         internal AgentAction[] GetActions()
         {
             var hasAction = _members.ContainsKey("action");

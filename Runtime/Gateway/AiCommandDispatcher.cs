@@ -21,7 +21,7 @@ namespace UniTestify
             AiCommandResponse response;
             try
             {
-                response = ExecuteCore(new AiCommandContext(request));
+                response = ExecuteImmediately(new AiCommandContext(request));
             }
             catch (Exception exception)
             {
@@ -79,6 +79,59 @@ namespace UniTestify
             _console = new AiConsoleLog();
         }
 
+        private static AiCommandResponse ExecuteImmediately(AiCommandContext context)
+        {
+            if (!CanFocusView(context))
+            {
+                return ExecuteCore(context);
+            }
+
+            if (TryFocusView(context))
+            {
+                // 同期 CLI では解像度の反映を待てないため、撮影・観測は次の要求に任せる。
+                return new AiCommandResponse
+                {
+                    ok = true,
+                    op = context.Operation,
+                    view = context.Arguments.view,
+                    message = "フォーカスを適用しました。フレーム反映後、次の呼び出しでは view を省略して撮影・観測してください。",
+                };
+            }
+
+            var response = ExecuteCore(context);
+            ApplyViewResult(response, context.Arguments.view, false);
+            return response;
+        }
+
+        private static bool CanFocusView(AiCommandContext context)
+        {
+            return !string.IsNullOrEmpty(context.Arguments.view)
+                && (context.Operation == "capture" || (context.Operation == "agent.observe" && Application.isPlaying));
+        }
+
+        private static bool TryFocusView(AiCommandContext context)
+        {
+            var captureName = context.Operation == "capture" ? context.Arguments.name : context.Arguments.capture;
+            if (context.Operation == "capture" || !string.IsNullOrEmpty(captureName))
+            {
+                AiCaptureSupport.ValidateName(captureName);
+            }
+
+            return AiPlayModeViewFocus.TryFocus(context.Arguments.view);
+        }
+
+        private static void ApplyViewResult(AiCommandResponse response, string requestedView, bool applied)
+        {
+            response.view = applied ? requestedView : string.Empty;
+            if (applied)
+            {
+                return;
+            }
+
+            var message = $"view={requestedView} を適用できませんでした（Handler 未登録、または対象ウィンドウを利用できません）。従来の撮影・観測対象を使用します。";
+            response.message = string.IsNullOrEmpty(response.message) ? message : response.message + "\n" + message;
+        }
+
         private static AiCommandResponse ExecuteCore(AiCommandContext context)
         {
             var operation = context.Operation;
@@ -129,7 +182,26 @@ namespace UniTestify
                 yield break;
             }
 
+            var hasView = CanFocusView(context);
+            var viewApplied = hasView && TryFocusView(context);
+            if (viewApplied)
+            {
+                // AiMailboxServer の要求は、観測を始める前にフォーカス後の解像度を安定させる。
+                using (var resolutionWait = AiPlayModeViewFocus.WaitForStableResolutionAsync())
+                {
+                    while (resolutionWait.MoveNext())
+                    {
+                        yield return resolutionWait.Current;
+                    }
+                }
+            }
+
             var response = ExecuteCore(context);
+            if (hasView)
+            {
+                ApplyViewResult(response, context.Arguments.view, viewApplied);
+            }
+
             if (context.Operation == "scenario.run" && response.ok)
             {
                 using (var execution = AiScenarioExecution.WaitAsync(response, context.Arguments.scenarioTimeoutSeconds))

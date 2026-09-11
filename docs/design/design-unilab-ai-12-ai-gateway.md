@@ -19,17 +19,17 @@ CLI と Unity 内蔵メールボックスの実行先を `AiCommandDispatcher` �
 | `ping` | なし | `playMode=<bool> scene=<name> frame=<n>` |
 | `ops` | なし | 登録済み op を改行区切りで返す |
 | `agent.begin` | `goal` 必須、`options` 任意 | freePlay:true は期待値 0 件を許可。それ以外は拒否 |
-| `agent.observe` | `diffOnly=false`、`scope="visible"`、`capture`・`directory` 任意 | 現在の観測。撮影指定時は画像情報も返す |
+| `agent.observe` | `diffOnly=false`、`scope="visible"`、`capture`・`directory` 任意、`view=""`（`game` / `simulator`） | 現在の観測。撮影指定時は画像情報も返す。view の同期経路はフォーカス適用のみ |
 | `agent.find` | `label`、`kind` 任意、`scope="visible"` | 観測を検索し、一件一行で推奨 target spec を返す |
 | `agent.act` | `action` または空でない `steps` 配列、`expect` 任意 | 各手を順に実行し、expect 未達・status が running 以外なら打ち切る |
 | `agent.goal` | なし | 既存の目標判定 |
 | `agent.end` | なし | 既存のセッション終了 |
 | `agent.export` | `name` | 成功または自由行動セッションのシナリオ保存 |
-| `capture` | 英数字・`_`・`-` だけの `name` 必須、`directory` 任意 | PNG の絶対パス。既定は `DebugOutput/captures` |
+| `capture` | 英数字・`_`・`-` だけの `name` 必須、`directory` 任意、`view=""`（`game` / `simulator`） | PNG の絶対パス。既定は `DebugOutput/captures`。view の同期経路はフォーカス適用のみ |
 | `snapshot` | `compact=true`、CLI 互換の `save=false` | 圧縮テキストまたはスナップショット JSON を text に格納 |
 | `console` | `count=40`、`level="all"` | 直近 500 行のリングから対象レベルの末尾 N 行 |
 
-`AiCommandResponse` は `ok/op/session/message/text/path/width/height/blank/settled/ready/expectOk/expectFailures/waitedMs/elapsedMs/error` を持つ。
+`AiCommandResponse` は `ok/op/session/message/text/path/width/height/view/blank/settled/ready/expectOk/expectFailures/waitedMs/elapsedMs/error` を持つ。
 既存の `AgentCommandResult` の `ok/session/message/text/path` は同名・同型を保つ。
 変換はディスパッチャの一箇所に集約する。未知 op は `error:"unknown op"`、不正 JSON は
 `ok:false` と例外メッセージを返す。`agent.*` は Play 外で `message:"playMode が必要です"`。
@@ -37,7 +37,7 @@ CLI と Unity 内蔵メールボックスの実行先を `AiCommandDispatcher` �
 ## 同期経路と落ち着き待ち
 
 CLI は `Execute` を使う。単発 act は従来どおり即時の観測を返し、`settled=false`。
-同期 capture は要求と予定パスを返すだけで、撮影完了を保証しない。
+同期 capture は要求と予定パスを返すだけで、撮影完了を保証しない。view 指定の適用成功時は後述のとおりフォーカスだけを行う。
 
 メールボックスは `ExecuteAsync` を使う。各 act の直前から `sceneLoaded` を購読し、
 入力後に最低一度フレームを進める。`AgentSessionDriver.IsBusy` と列挙可能な未ロードシーンを監視し、
@@ -200,6 +200,36 @@ RGB を 0〜255 の輝度（係数 0.2126 / 0.7152 / 0.0722）に変換し、母
 `blank=true`。白色に限定せず、ほぼ単色の画像を判定する。Texture は Play 中なら Destroy、
 それ以外は DestroyImmediate で必ず破棄する。撮影時だけの処理で毎フレーム解析はしない。
 同期 CLI は生成を待たず、`width=height=0` / `blank=false` のまま返す。
+
+### T1: 撮影対象ウィンドウの明示指定
+
+`AiCommandArguments.view` は `""`（既定）/ `"game"` / `"simulator"`。`capture` と `agent.observe` で検証し、
+不正値は `ArgumentException` をディスパッチャで `ok:false` / `error` に変換する。
+`Runtime/Gateway/Execution/AiPlayModeViewFocus` の `internal static Func<string, bool> FocusHandler` を
+`Editor/Gateway/PlayModeViewFocus` が `[InitializeOnLoadMethod]` で登録する。
+Runtime に `InternalsVisibleTo("UniTestify.Editor")` を追加して登録を許可する。
+
+Editor 側は全ロード済みアセンブリから `UnityEditor.GameView` または
+`UnityEditor.DeviceSimulation.SimulatorWindow` を型名で探し、`EditorWindow.GetWindow(type).Focus()` を呼ぶ。
+型が無い、ウィンドウを取得・生成できない、バッチモードのいずれも `false`。
+`TryFocus(view)` は view が空または Handler 未登録なら `false`。
+適用不能時は要求を失敗させず既存処理へ進み、応答 `view` を空、`message` に理由を追記する。
+
+メールボックスは既存の `AiMailboxServer` → `AiCommandDispatcher.ExecuteAsync` で要求を処理する。
+共通の非同期経路で `TryFocus` → `Screen.width/height` の安定待ち → 従来の観測・撮影を実行する。
+安定判定は 2 フレーム連続の寸法一致、待機上限は定数 5 フレーム。上限到達時も処理を進める。
+yield は観測の前に置き、観測と撮影要求の間では yield しない。
+
+同期 `Execute` / Pipeline CLI はフレームをまたげない。`--view` の適用成功時はフォーカスだけを行い、
+`ok:true` / `view` / 次回呼び出しの案内を返す。`path` / `text` は空で撮影・観測は発行しない。
+Editor のフレーム反映後、次の呼び出しで view を省略して撮影・観測する。
+適用不能時と view 未指定時は従来処理を使う。`agent.observe` の PlayMode 必須条件は維持する。
+`ai_capture` / `ai_agent_observe` に `--view` を追加するが、後者の既存引数は `diffOnly` のみのため、
+撮影は次回の `ai_capture` で行う。観測と撮影を一要求にする場合はメールボックスを使う。
+
+応答に `string view` を追加する。値は今回実際にフォーカスを適用した `game` / `simulator`、
+未指定・適用不能時は空。PNG の実寸は既存の非同期応答 `width` / `height` を読む。
+観測本文とセッション成果物 JSON の形式は変更しない。
 
 ### console のリングバッファ
 

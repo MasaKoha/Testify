@@ -2,4 +2,5 @@
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("UniTestify.Tests.EditMode")]
+[assembly: InternalsVisibleTo("UniTestify.Editor")]
 #endif

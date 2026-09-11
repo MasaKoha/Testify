@@ -29,6 +29,13 @@
 | `BusyProvider` | `IGameBusyProvider.IsBusy / Reason` | 落ち着き待ちと `agent: busy=` |
 | `CommandHandler` | `IGameCommandHandler` | デバッグコマンド（素材付与等） |
 
+Editor の撮影対象選択は `Editor/Gateway/PlayModeViewFocus` が
+`AiPlayModeViewFocus.FocusHandler` に登録する。Runtime は Editor の型を参照せず、
+`InternalsVisibleTo("UniTestify.Editor")` で internal の登録口を Editor 側から使えるようにする。
+メールボックスの要求処理は既存の `AiCommandDispatcher.ExecuteAsync` 内でフォーカス → 解像度安定待ち
+（2 フレーム連続一致、上限 5 フレーム）→ 観測・撮影の順に進む。観測と撮影の間では yield しない。
+同期 CLI は view の適用成功時にフォーカスだけを行い、次回の view 未指定呼び出しで撮影・観測する。
+
 ## フォルダ構成
 
 各行のファイル数は直下の `.cs` のみ（子フォルダ・`.meta`・`.asmdef` は含めない）。
@@ -49,27 +56,38 @@
 | `Runtime/Agent/Goals/` | 3 | 目標 JSON、目標の妥当性検証・達成判定 |
 | `Runtime/Agent/Session/` | 4 | セッションの停止判定、履歴・成果物・終了レポート |
 | `Runtime/Gateway/` | 8 | 共通ディスパッチャ、要求・応答・引数、JSON 検証、直近ログ、実行状態 |
-| `Runtime/Gateway/Execution/` | 3 | 撮影の発行・完了待ち、シナリオ起動・結果待ち、入力後の静止待ち |
+| `Runtime/Gateway/Execution/` | 4 | 撮影の発行・完了待ち、撮影対象フォーカス・解像度安定待ち、シナリオ起動・結果待ち、入力後の静止待ち |
 | `Runtime/Gateway/Mailbox/` | 3 | ファイル要求・応答、ポーリングサーバー、Prefab の型付き参照 |
 | `Runtime/Scenario/` | 8 | シナリオの入口・ステップ解釈、入力実行、成果物保存、記録の開始停止 |
 | `Runtime/Scenario/Expectations/` | 3 | シナリオ期待値、評価器、失敗理由 |
 | `Runtime/Scenario/Results/` | 3 | シナリオ全体・ステップの結果、証拠パス |
 | `Runtime/Snapshot/` | 6 | UI スナップショットの収集・保存・整形・比較と観測モデル |
+| `Runtime/Snapshot/Collection/` | 4 | シーン・要素・ゲーム状態の収集と観測モデルへの変換 |
+| `Runtime/Snapshot/Comparison/` | 1 | UI スナップショットの差分判定 |
+| `Runtime/Snapshot/Output/` | 2 | 観測テキストの整形・JSON 保存 |
 | `Runtime/Input/` | 9 | 入力注入・記録・再生、イベント・待機アンカー・再生結果、入力の語彙 |
 | `Runtime/Input/Overlay/` | 8 | 入力可視化の入口・制御・描画・履歴・表示設定 |
 | `Runtime/Input/Overlay/Input/` | 4 | 入力 API ごとの取得と押下・解放・保持状態 |
 | `Runtime/Monkey/` | 8 | ランダム探索、設定、網羅率、操作履歴、違反・終了結果 |
 | `Runtime/Performance/` | 5 | 性能計測の入口・フレーム採取、ステップ・全体レポート |
 | `Runtime/Recording/` | 5 | 動画・音声記録、manifest、マーカー、録画結果 |
+| `Runtime/Recording/Capture/` | 2 | 撮影範囲と GPU readback バッファの所有 |
+| `Runtime/Recording/Encoding/` | 1 | フレームのエンコード・書込と一時バッファの解放 |
+| `Runtime/Recording/Output/` | 2 | 録画成果物・manifest・ffmpeg コマンド |
+| `Runtime/Recording/Session/` | 1 | 録画中の環境設定と復元 |
 | `Runtime/Forensics/` | 6 | 例外時の証拠収集、文脈・保留ログ、ファイルログ出力 |
 | `Runtime/Scene/` | 4 | シーン階層の収集、シーン・ノード・ダンプモデル |
 | `Runtime/Ui/` | 9 | UI 入力対象の解決、可視判定・観測範囲・準備状態、スクロール、レイアウト監査 |
 | `Runtime/Adapters/` | 4 | ゲーム状態・busy・コマンドの接続契約と登録窓口 |
 | `Runtime/Core/` | 3 | 出力先、アセンブリ属性、SerializeField 結線情報 |
 | `Runtime/RunArchive/` | 3 | ラン概要と性能・視覚回帰の要約モデル |
-| `Editor/Gateway/` | 0 | メールボックスの Editor 操作を束ねる親フォルダ |
+| `Editor/Gateway/` | 1 | Game View / Device Simulator のフォーカス処理の登録 |
 | `Editor/Gateway/Mailbox/` | 1 | メールボックス起動メニュー |
 | `Editor/RunArchive/` | 8 | 成果物の集約・索引生成、シナリオ成果物の読取モデル、メニュー |
+| `Editor/RunArchive/Export/` | 4 | 成果物の選択・コピー・配送 |
+| `Editor/RunArchive/References/` | 2 | コピー先の参照パスとシナリオ結果の書換え |
+| `Editor/RunArchive/Summary/` | 2 | ラン概要と対象期間の構築 |
+| `Editor/RunArchive/Index/` | 1 | 保存済みランの索引再構築 |
 | `Editor/VisualRegression/` | 9 | 画像比較、無視領域の解析・設定、比較結果・レポート、メニュー |
 | `Editor/Scenario/` | 1 | シナリオ実行メニュー |
 | `Editor/Scene/` | 1 | シーン階層ダンプメニュー |
@@ -91,9 +109,12 @@
 | `Tests/EditMode/Runtime/Agent/Goals/` | 1 | `Runtime/Agent/Goals/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Agent/Session/` | 2 | `Runtime/Agent/Session/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Gateway/` | 3 | `Runtime/Gateway/` に対応する EditMode テスト |
-| `Tests/EditMode/Runtime/Gateway/Execution/` | 2 | `Runtime/Gateway/Execution/` に対応する EditMode テスト |
+| `Tests/EditMode/Runtime/Gateway/Execution/` | 3 | `Runtime/Gateway/Execution/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Gateway/Mailbox/` | 2 | `Runtime/Gateway/Mailbox/` に対応する EditMode テスト |
-| `Tests/EditMode/Runtime/Snapshot/` | 2 | `Runtime/Snapshot/` に対応する EditMode テスト |
+| `Tests/EditMode/Runtime/Snapshot/` | 3 | `Runtime/Snapshot/` に対応する EditMode テスト |
+| `Tests/EditMode/Runtime/Recording/` | 0 | 録画実装に対応するテストの親フォルダ |
+| `Tests/EditMode/Runtime/Recording/Capture/` | 1 | `Runtime/Recording/Capture/` に対応する EditMode テスト |
+| `Tests/EditMode/Runtime/Recording/Output/` | 2 | `Runtime/Recording/Output/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Input/Overlay/Input/` | 1 | `Runtime/Input/Overlay/Input/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Ui/` | 3 | `Runtime/Ui/` に対応する EditMode テスト |
 
@@ -101,7 +122,7 @@
 既存スクリプトの `.meta` はスクリプトと対で移し、追加フォルダにも `.meta` を置く。
 
 テストは `Tests/EditMode/<実装アセンブリのルート>/<同じ機能パス>/` へ対応させる。
-現存する 20 ファイルはすべて Runtime 対象のため `Tests/EditMode/Runtime/` 以下に置く。
+現存する 25 ファイルはすべて Runtime 対象のため `Tests/EditMode/Runtime/` 以下に置く。
 Editor / Pipeline のテストを追加する場合も同じ対応規則に従い、テストのない機能に空フォルダは作らない。
 複数機能を検証する既存テストは主対象で配置する（`AgentExpectTest` は `Agent/Actions/`、
 `AgentExportTest` は `Agent/Session/`）。全ファイルの移動対応と判断は [実装記録](implementation.md) を参照。

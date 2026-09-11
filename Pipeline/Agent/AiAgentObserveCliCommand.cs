@@ -11,13 +11,18 @@ namespace UniTestify.Pipeline
     public static class AiAgentObserveCliCommand
     {
         /// <summary>
-        /// 現在セッションの観測を返します。
+        /// 現在セッションの観測を返します。view の適用成功時はフォーカスだけを行います。
         /// </summary>
         [CliCommand("ai_agent_observe", "エージェントの現在観測を返します。", Tags = new[] { "agent" })]
         public static string Observe(
-            [CliArg("diffOnly", "前回との差分だけ返すか。")] bool diffOnly = false)
+            [CliArg("diffOnly", "前回との差分だけ返すか。")] bool diffOnly = false,
+            [CliArg("view", "game / simulator。適用成功時はフォーカスのみ。次回は省略して観測。")] string view = "")
         {
-            var response = AiCommandDispatcher.Execute(new AiCommandRequest { op = "agent.observe", args = JsonUtility.ToJson(new AiCliArguments { diffOnly = diffOnly }) });
+            var response = AiCommandDispatcher.Execute(new AiCommandRequest
+            {
+                op = "agent.observe",
+                args = JsonUtility.ToJson(new AiCliArguments { diffOnly = diffOnly, view = view }),
+            });
             return JsonUtility.ToJson(response, true);
         }
     }

@@ -28,7 +28,7 @@
 | キー | 意味 |
 |---|---|
 | `waitScene` | 操作した**結果**として到着するシーン名を待つ |
-| `waitForText` / `waitForObject` / `waitForFocus` / `waitForScene` | 操作前の準備条件を明示（通常は不要。ランナーが対象の準備を自動で待つ） |
+| `waitForText` / `waitForObject` / `waitForFocus` / `waitForScene` | 操作前のアンカー。条件が**成立するまで待つ**。対象の通常の準備待ちはランナーが自動で行うため省略できる |
 | `settleFrames` | 操作後に待つフレーム数。撮影・監査のあるステップだけ既定 30、それ以外は 0。**フレーム数であり秒ではない**（60fps 固定で回すと 180 = 3 秒） |
 | `expect` | 事後条件の配列。未達は `failedSteps` に数え、`stopOnFail` なら打ち切る |
 | `comment` | 人向けメモ。AI セッションから書き出したときは「元の実行では未達」が入る |
@@ -62,11 +62,42 @@
 
 ## 押せるまで待つ、の中身
 
+`submit` / `click` / `tap` に対象を指定すれば、ランナーが操作対象の準備を**自動で待ち**、準備後に送出する。
+シナリオの前後で `snapshot` や `agent.find` を繰り返し、対象の存在を確認するポーリングは書かない。
+
 1. 対象が存在する
 2. 前面の Graphic に遮られていない（モーダルの暗幕・別パネル越しには押さない）
 3. `Selectable.IsInteractable()` が true
 
 上限 30 秒。超えたら警告を出して見送る（`verdict=fail`）。結果の `waited` が「押せるまで待った実時間」＝応答時間の計測値になる。
+
+`click` / `tap` はターゲット名を受け、**RectTransform の中心**へ入力を送る。
+`OnPointerClick` だけで反応するカード・独自 UI は `submit` ではなく `click` / `tap` を使う。
+次の例では、各対象が出現し、遮蔽がなくなり、操作可能になるまで自動で待つ。
+
+```json
+{
+  "steps": [
+    { "click": "InventoryPanel/ItemCard0" },
+    { "tap": "ItemDetailPanel/CloseArea" }
+  ]
+}
+```
+
+操作対象とは別の到達条件が必要な場合は、`waitForObject` 等のアンカーを一度指定する。
+アンカーはその場の存在確認だけを返すものではなく、**成立までランナー内で待ち続ける**（準備待ちの上限 30 秒）。
+`waitForObject` は存在・遮蔽・操作可否、`waitForText` は文字の可視性、`waitForFocus` はフォーカス、
+`waitForScene` はシーンのロードを待つ。複数を指定した場合はすべての成立を待つ。
+単独の待機ステップにも使えるため、存在確認の外部ループや固定時間の sleep を足さない。
+
+```json
+{
+  "steps": [
+    { "waitForObject": "ItemDetailPanel/CloseArea" },
+    { "waitForText": "詳細", "press": "east" }
+  ]
+}
+```
 
 ## AI セッションから回帰シナリオを作る
 
