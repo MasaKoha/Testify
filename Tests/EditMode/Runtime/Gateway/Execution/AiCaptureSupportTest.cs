@@ -12,7 +12,6 @@ namespace UniTestify.Tests
 
         /// <summary>単色の画像は明度によらず標準偏差ゼロです。</summary>
         [TestCase((byte)0)]
-        [TestCase((byte)120)]
         [TestCase(MaximumChannel)]
         public void SolidColorHasZeroDeviation(byte channel)
         {

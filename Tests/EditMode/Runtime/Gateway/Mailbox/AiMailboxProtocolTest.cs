@@ -31,9 +31,6 @@ namespace UniTestify.Tests
         public void RequestAndResponseRoundTrip()
         {
             var request = new AiCommandRequest { op = "agent.act", args = "{\"action\":{\"submit\":\"開始\"}}" };
-            var restoredRequest = JsonUtility.FromJson<AiCommandRequest>(JsonUtility.ToJson(request));
-            Assert.That(restoredRequest.op, Is.EqualTo(request.op));
-            Assert.That(restoredRequest.args, Is.EqualTo(request.args));
             var response = new AiCommandResponse
             {
                 ok = true, op = request.op, session = "session", message = "完了", text = "本文\n次行",

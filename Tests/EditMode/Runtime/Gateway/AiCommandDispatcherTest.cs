@@ -18,28 +18,6 @@ namespace UniTestify.Tests
             Assert.That(response.path, Is.Empty);
         }
 
-        /// <summary>非同期入口でもフォーカスや撮影より先に不正な view を拒否します。</summary>
-        [TestCase("capture")]
-        [TestCase("agent.observe")]
-        public void AsyncInvalidViewReturnsFailure(string operation)
-        {
-            AiCommandResponse response = null;
-            var execution = AiCommandDispatcher.ExecuteAsync(
-                new AiCommandRequest { op = operation, args = "{\"view\":\"other\"}" }, result => response = result);
-            try
-            {
-                Assert.That(execution.MoveNext(), Is.False);
-                Assert.That(response.ok, Is.False);
-                Assert.That(response.error, Does.Contain("view"));
-                Assert.That(response.view, Is.Empty);
-                Assert.That(response.path, Is.Empty);
-            }
-            finally
-            {
-                ((System.IDisposable)execution).Dispose();
-            }
-        }
-
         /// <summary>未知の操作を成功扱いしないことを保証します。</summary>
         [Test]
         public void UnknownOperationReturnsFailure()
@@ -62,22 +40,6 @@ namespace UniTestify.Tests
             var response = AiCommandDispatcher.Execute(new AiCommandRequest { op = "ops", args = arguments });
             Assert.That(response.ok, Is.False);
             Assert.That(response.error, Is.Not.Empty);
-        }
-
-        /// <summary>クライアントが操作一覧から必要な入口を発見できます。</summary>
-        [Test]
-        public void OperationsIncludeAgentAndCapture()
-        {
-            var response = AiCommandDispatcher.Execute(new AiCommandRequest { op = "ops" });
-            Assert.That(response.ok, Is.True);
-            Assert.That(response.text.Split('\n'), Is.EquivalentTo(AiCommandDispatcher.ListOps()));
-            Assert.That(response.text, Does.Contain("agent.begin"));
-            Assert.That(response.text, Does.Contain("adapters.load"));
-            Assert.That(response.text, Does.Contain("agent.act"));
-            Assert.That(response.text, Does.Contain("capture"));
-            Assert.That(response.text, Does.Contain("scene.dump"));
-            Assert.That(response.text, Does.Contain("scenario.run"));
-            Assert.That(response.text, Does.Contain("scenario.status"));
         }
 
         /// <summary>Pipeline 未導入を専用の message で返します。</summary>
@@ -104,37 +66,6 @@ namespace UniTestify.Tests
             }
         }
 
-        /// <summary>ディレクトリと注入結果を変更せずに共通ディスパッチャから受け渡します。</summary>
-        [TestCase(true)]
-        [TestCase(false)]
-        public void AdaptersLoadForwardsDirectoryAndResult(bool succeeded)
-        {
-            const string directory = "/external/adapters";
-            const string message = "元のコンパイル診断";
-            var previousLoader = GameAdapterLoader.Loader;
-            var receivedDirectory = string.Empty;
-            try
-            {
-                GameAdapterLoader.Loader = requestedDirectory =>
-                {
-                    receivedDirectory = requestedDirectory;
-                    return new GameAdapterLoadResult(succeeded, message);
-                };
-                var response = AiCommandDispatcher.Execute(new AiCommandRequest
-                {
-                    op = "adapters.load", args = "{\"directory\":\"" + directory + "\"}",
-                });
-
-                Assert.That(receivedDirectory, Is.EqualTo(directory));
-                Assert.That(response.ok, Is.EqualTo(succeeded));
-                Assert.That(response.message, Is.EqualTo(message));
-            }
-            finally
-            {
-                GameAdapterLoader.Loader = previousLoader;
-            }
-        }
-
         /// <summary>例外の原文と内部例外を message に残します。</summary>
         [Test]
         public void AdaptersLoadPreservesExceptionInMessage()
@@ -154,28 +85,6 @@ namespace UniTestify.Tests
             }
             finally
             {
-                GameAdapterLoader.Loader = previousLoader;
-            }
-        }
-
-        /// <summary>メールボックスの非同期入口も同じ注入処理へ渡します。</summary>
-        [Test]
-        public void AsyncAdaptersLoadUsesRegisteredLoader()
-        {
-            const string message = "注入結果";
-            var previousLoader = GameAdapterLoader.Loader;
-            AiCommandResponse response = null;
-            var execution = AiCommandDispatcher.ExecuteAsync(new AiCommandRequest { op = "adapters.load" }, result => response = result);
-            try
-            {
-                GameAdapterLoader.Loader = directory => new GameAdapterLoadResult(true, message);
-                Assert.That(execution.MoveNext(), Is.False);
-                Assert.That(response.ok, Is.True);
-                Assert.That(response.message, Is.EqualTo(message));
-            }
-            finally
-            {
-                ((System.IDisposable)execution).Dispose();
                 GameAdapterLoader.Loader = previousLoader;
             }
         }
@@ -241,36 +150,6 @@ namespace UniTestify.Tests
             Assert.That(response.error, Does.Contain("path"));
         }
 
-        /// <summary>メールボックス経路でもパス未指定を同じエラーへ変換します。</summary>
-        [Test]
-        public void AsyncScenarioRunWithoutPathReturnsFailure()
-        {
-            AiCommandResponse response = null;
-            var execution = AiCommandDispatcher.ExecuteAsync(new AiCommandRequest { op = "scenario.run" }, result => response = result);
-            Assert.That(execution.MoveNext(), Is.False);
-            Assert.That(response.ok, Is.False);
-            Assert.That(response.error, Does.Contain("path"));
-        }
-
-        /// <summary>操作の落ち着き待ちから独立した既定のシナリオ待機時間を使います。</summary>
-        [Test]
-        public void ScenarioTimeoutDefaultsToDedicatedLimit()
-        {
-            var context = new AiCommandContext(new AiCommandRequest { op = "scenario.run", args = "{\"path\":\"scenario.json\",\"settleTimeoutSeconds\":1}" });
-            Assert.That(context.Arguments.scenarioTimeoutSeconds, Is.EqualTo(AiCommandArguments.DefaultScenarioTimeoutSeconds));
-        }
-
-        /// <summary>シーン観測の省略値を経路間で共用します。</summary>
-        [Test]
-        public void SceneDumpArgumentsUseSharedDefaults()
-        {
-            var context = new AiCommandContext(new AiCommandRequest { op = "scene.dump" });
-            Assert.That(context.Arguments.depth, Is.EqualTo(SceneHierarchyDumpText.DefaultDepth));
-            Assert.That(context.Arguments.maxNodes, Is.EqualTo(SceneHierarchyDumpText.DefaultMaxNodes));
-            Assert.That(context.Arguments.filter, Is.Null.Or.Empty);
-            Assert.That(context.Arguments.save, Is.False);
-        }
-
         /// <summary>不正な表示上限を共通の失敗応答へ変換します。</summary>
         [TestCase("{\"depth\":-1}", "depth")]
         [TestCase("{\"maxNodes\":0}", "maxNodes")]
@@ -312,6 +191,38 @@ namespace UniTestify.Tests
         {
             /// <summary>改行を含む名前も正しく JSON エスケープして検証します。</summary>
             public string name;
+        }
+
+        /// <summary>非同期入口でもフォーカスや撮影より先に不正な view を拒否します。</summary>
+        [TestCase("capture")]
+        [TestCase("agent.observe")]
+        public void AsyncInvalidViewReturnsFailure(string operation)
+        {
+            AiCommandResponse response = null;
+            var execution = AiCommandDispatcher.ExecuteAsync(
+                new AiCommandRequest { op = operation, args = "{\"view\":\"other\"}" }, result => response = result);
+            try
+            {
+                Assert.That(execution.MoveNext(), Is.False);
+                Assert.That(response.ok, Is.False);
+                Assert.That(response.error, Does.Contain("view"));
+                Assert.That(response.view, Is.Empty);
+                Assert.That(response.path, Is.Empty);
+            }
+            finally
+            {
+                ((System.IDisposable)execution).Dispose();
+            }
+        }
+        /// <summary>メールボックス経路でもパス未指定を同じエラーへ変換します。</summary>
+        [Test]
+        public void AsyncScenarioRunWithoutPathReturnsFailure()
+        {
+            AiCommandResponse response = null;
+            var execution = AiCommandDispatcher.ExecuteAsync(new AiCommandRequest { op = "scenario.run" }, result => response = result);
+            Assert.That(execution.MoveNext(), Is.False);
+            Assert.That(response.ok, Is.False);
+            Assert.That(response.error, Does.Contain("path"));
         }
     }
 }

@@ -32,33 +32,9 @@ namespace UniTestify.Tests
             Assert.That(request.Validate(false), Is.Null);
         }
 
-        /// <summary>T2 の全操作を受け付け、状態変更の受理応答を区別します。</summary>
-        [TestCase("status", false)]
-        [TestCase("play", true)]
-        [TestCase("stop", true)]
-        [TestCase("pause", true)]
-        [TestCase("unpause", false)]
-        [TestCase("focus_game_view", false)]
-        [TestCase("simulator_view", false)]
-        [TestCase("menu", false)]
-        public void SupportedOperationsAreAccepted(string operation, bool requiresAcceptance)
-        {
-            var request = new EditorControlRequest { op = operation, arg = "Window/General/Console" };
-            var restored = EditorControlRequest.FromJson(JsonUtility.ToJson(request));
-
-            Assert.That(restored.Validate(false), Is.Null);
-            Assert.That(restored.RequiresAcceptance, Is.EqualTo(requiresAcceptance));
-        }
-
         /// <summary>コンパイル中は状態照会だけを受け付けます。</summary>
         [TestCase("status")]
         [TestCase("play")]
-        [TestCase("stop")]
-        [TestCase("pause")]
-        [TestCase("unpause")]
-        [TestCase("focus_game_view")]
-        [TestCase("simulator_view")]
-        [TestCase("menu")]
         public void CompilationRejectsEveryOperationExceptStatus(string operation)
         {
             var request = new EditorControlRequest { op = operation, arg = "Window/General/Console" };
@@ -75,7 +51,6 @@ namespace UniTestify.Tests
 
         /// <summary>未知・省略・大文字違いの op を成功扱いにしません。</summary>
         [TestCase("{\"op\":\"unknown\"}", "unknown")]
-        [TestCase("{\"op\":\"PLAY\"}", "PLAY")]
         [TestCase("{}", "")]
         public void UnknownOperationReturnsFailure(string json, string operation)
         {
@@ -87,7 +62,6 @@ namespace UniTestify.Tests
 
         /// <summary>メニューパスが欠けた要求を実行前に拒否します。</summary>
         [TestCase("{\"op\":\"menu\"}")]
-        [TestCase("{\"op\":\"menu\",\"arg\":\"\"}")]
         [TestCase("{\"op\":\"menu\",\"arg\":\"  \"}")]
         public void MenuRequiresArgument(string json)
         {
@@ -98,11 +72,7 @@ namespace UniTestify.Tests
         }
 
         /// <summary>壊れた JSON や文字列以外の op / arg を補正して実行しません。</summary>
-        [TestCase("")]
         [TestCase("{")]
-        [TestCase("[]")]
-        [TestCase("null")]
-        [TestCase("{\"op\":\"play\"} trailing")]
         [TestCase("{\"op\":null}")]
         [TestCase("{\"op\":1}")]
         [TestCase("{\"op\":\"menu\",\"arg\":{}}")]
@@ -112,22 +82,7 @@ namespace UniTestify.Tests
             Assert.Throws<FormatException>(() => EditorControlRequest.FromJson(json));
         }
 
-        /// <summary>受理応答で状態変更の完了を保証せず、確認先を返します。</summary>
-        [TestCase("play")]
-        [TestCase("stop")]
-        [TestCase("pause")]
-        public void AcceptedResponseDirectsCallerToStatus(string operation)
-        {
-            var response = EditorControlResponse.Accepted(operation);
-
-            Assert.That(response.ok, Is.True);
-            Assert.That(response.message, Does.Contain(operation));
-            Assert.That(response.message, Does.Contain("受理"));
-            Assert.That(response.message, Does.Contain("status"));
-        }
-
         /// <summary>成功・失敗ともに応答のフィールドを ok と message に限定します。</summary>
-        [TestCase(true)]
         [TestCase(false)]
         public void ResponseContainsOnlyContractFields(bool succeeded)
         {

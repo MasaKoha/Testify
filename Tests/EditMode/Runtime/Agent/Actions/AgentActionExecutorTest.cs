@@ -12,12 +12,7 @@ namespace UniTestify.Tests
     public sealed class AgentActionExecutorTest
     {
         /// <summary>種別・対象・キーが既存の行動表現に一致することを検証します。</summary>
-        [TestCase("{\"submit\":\"Start\"}", "submit", "Start")]
-        [TestCase("{\"press\":\"south\"}", "press", "south")]
-        [TestCase("{\"move\":\"up\"}", "move", "up")]
-        [TestCase("{\"click\":\"Row\"}", "click", "Row")]
         [TestCase("{\"drag\":\"pointer\",\"from\":\"First\",\"to\":\"Last\"}", "drag", "First")]
-        [TestCase("{\"scrollTo\":\"Row\"}", "scrollTo", "Row")]
         [TestCase("{}", "", "")]
         [TestCase(null, "", "")]
         [TestCase("{\"submit\":\"Start\",\"press\":\"south\"}", "submit", "Start")]

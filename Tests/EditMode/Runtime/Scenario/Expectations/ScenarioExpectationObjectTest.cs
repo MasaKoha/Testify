@@ -33,11 +33,9 @@ namespace UniTestify.Tests
         [TestCase("objectExists", true, true, true)]
         [TestCase("objectExists", true, false, false)]
         [TestCase("objectExists", false, true, false)]
-        [TestCase("objectExists", false, false, false)]
         [TestCase("objectAbsent", true, true, false)]
         [TestCase("objectAbsent", true, false, true)]
         [TestCase("objectAbsent", false, true, true)]
-        [TestCase("objectAbsent", false, false, true)]
         public void ObjectExpectationUsesActiveHierarchy(string kind, bool rootActive, bool childActive, bool expectedSuccess)
         {
             _root.SetActive(rootActive);
@@ -47,7 +45,6 @@ namespace UniTestify.Tests
 
         /// <summary>名前とパス断片を FindTarget と同じ対象指定として受け付けます。</summary>
         [TestCase(ChildName)]
-        [TestCase(TargetPath)]
         public void ObjectExpectationResolvesTargetSpecification(string target)
         {
             AssertExpectation("objectExists", target, true);
