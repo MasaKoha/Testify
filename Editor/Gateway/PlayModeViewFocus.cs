@@ -16,7 +16,8 @@ namespace UniTestify.Editor
             AiPlayModeViewFocus.FocusHandler = TryFocus;
         }
 
-        private static bool TryFocus(string view)
+        /// <summary>撮影要求と Editor 操作メールボックスで同じウィンドウ選択を共用します。</summary>
+        internal static bool TryFocus(string view)
         {
             if (Application.isBatchMode)
             {

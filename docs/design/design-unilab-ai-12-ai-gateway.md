@@ -76,6 +76,38 @@ Unity 終了中の I/O 失敗やプロセスクラッシュでは応答を保証
 
 ## 起動方法
 
+### T2 Editor 操作メールボックス（2026-09-11 追加）
+
+Runtime のメールボックスとは別に、`EditorControlMailbox` を `[InitializeOnLoad]` で常駐させる。
+`EditorApplication.update` で `<Unity プロジェクト>/DebugOutput/editor-mailbox/req-*.json` を処理する。
+`EditorControlRequest` / `EditorControlResponse` は `[Serializable]` と `JsonUtility` を使い、
+要求は `{"op":"…","arg":"…"}`、応答は `{"ok":true,"message":"…"}` に限定する。
+JSON 解釈・検証・応答生成は Editor API 呼び出しから分離する。
+
+op は `status` / `play` / `stop` / `pause` / `unpause` / `focus_game_view` / `simulator_view` / `menu`。
+`menu` は arg のメニューパスを `EditorApplication.ExecuteMenuItem` へ渡す。
+フォーカスは T1 の `PlayModeViewFocus.TryFocus` を共用し、適用不能なら `ok:false`。
+`status` の message は `isPlaying=True isPaused=False isCompiling=False focusedWindow=UnityEditor.GameView`
+の形式。focusedWindow は完全型名、前面ウィンドウがなければ空文字列とする。
+
+`play` / `stop` / `pause` は応答と要求削除を先に確定し、次の Editor 更新で状態変更する。
+成功は要求受理であり、呼び出し側は `status` で反映を確認する。
+`unpause` は `EditorApplication.isPaused = false` を実行し、解除の応答を返す。
+`isCompiling=true` の間は `status` 以外を拒否する。
+未知 op、不正 JSON、文字列でない op / arg、menu のパス欠落も `ok:false` と理由を返す。
+
+要求・応答は同一ディレクトリの `.tmp` → rename で公開し、I/O 部品は `AiMailboxFiles` を共用する。
+ポーリングは定数 0.05 秒。初期走査後は `FileSystemWatcher` の通知で走査を予約し、
+必要な間隔につき `Directory.GetFiles` を最大1回呼ぶ。通知のない待機中は走査・要求用の確保をしない。
+ファイル通知のスレッドでは Editor API を呼ばず、ドメインリロード前と終了時に監視を解放する。
+
+`Tools/editor_ctl.py` は `ai_client.py` と同じ UUID・原子的公開・応答待ち・終了コードの流儀を使う。
+`--mailbox` 省略時はカレントから親へ `DebugOutput/editor-mailbox` を探索し、初回は Unity プロジェクト構造でも解決する。
+`--timeout` は既定 60 秒。Runtime 用環境変数・`.enabled` は使わない。
+詳細は [op リファレンス](../ops-reference.md#editor-メールボックス) を参照。
+
+### Runtime メールボックス
+
 すべて `AiMailboxServer.Start(directory)` に集約する。
 
 - **マーカー**: 既定メールボックスに `.enabled` を作り、Play を開始する。
