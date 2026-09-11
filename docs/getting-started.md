@@ -32,6 +32,44 @@ AI クライアントは **ファイル I/O だけ** で Unity と話す（サ�
 2. Editor メニュー `UniTestify/Mailbox/Start`（`Stop` で停止）
 3. Unity 公式 CLI: `unity command ai_mailbox --start`（`--status` で間隔と最終処理時刻）
 
+### Editor 操作（Play 停止中も利用可能）
+
+パッケージを読み込んだ Editor では `EditorControlMailbox` が自動で常駐し、
+プロジェクト直下の `DebugOutput/editor-mailbox/` を監視する。開始メニューや `.enabled` は不要。
+`editor_ctl.py` で、起動済み Editor の Play / Stop / Pause / フォーカス / メニューを操作できる。
+
+Unity プロジェクトのルートから実行する:
+
+```sh
+EDITOR_CLIENT=Packages/com.pisuke.unitestify/Tools/editor_ctl.py   # コピー導入なら Assets/UniTestify/Tools/editor_ctl.py
+
+python3 "$EDITOR_CLIENT" status
+python3 "$EDITOR_CLIENT" play
+python3 "$EDITOR_CLIENT" status
+python3 "$EDITOR_CLIENT" pause
+python3 "$EDITOR_CLIENT" unpause
+python3 "$EDITOR_CLIENT" focus_game_view
+python3 "$EDITOR_CLIENT" simulator_view
+python3 "$EDITOR_CLIENT" menu 'Window/General/Console'
+python3 "$EDITOR_CLIENT" stop
+python3 "$EDITOR_CLIENT" status
+```
+
+出力は `{"ok":true,"message":"…"}` の一行 JSON。`play` / `stop` / `pause` の
+成功は**要求受理**で、状態変更は応答後の Editor 更新で行う。
+`status` の `message` に `isPlaying=True` が現れるまで照会して Play 開始を確認する。
+停止確認は `isPlaying=False`、Pause 確認は `isPaused=True`、解除確認は `isPaused=False`。
+`isCompiling=True` の間は `status` 以外が `ok:false` になるため、コンパイル完了を確認してから再要求する。
+`simulator_view` は Device Simulator を前面に出す。利用できない環境では `ok:false` を返す。
+
+`--mailbox DIR` を省略すると、カレントから親へ `DebugOutput/editor-mailbox` を探索する。
+初回は `Assets/` と `ProjectSettings/` のある親も探す。パッケージリポジトリから
+`TestProject/` の Editor を操作する場合は `--mailbox TestProject/DebugOutput/editor-mailbox` を指定する。
+Runtime 用の環境変数 `TESTIFY_MAILBOX` は参照しない。
+`--timeout` は応答待ちの秒数（既定 60 秒）。終了コードは成功 0、失敗 1。
+タイムアウト時は要求が残り、後から実行される場合がある。
+要求・応答と全 op は [Editor メールボックス](ops-reference.md#editor-メールボックス) を参照。
+
 ## 3. クライアントから操作する
 
 ```sh

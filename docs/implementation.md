@@ -358,3 +358,112 @@ Unity の起動・インポート・コンパイル、`dotnet build`、EditMode 
 
 1. 同名要素で実際に曖昧な選択が必要になった時点で `path#index` を別タスクにすべき。
    理由は `FindByPathSegment` が最初の一致を返すため。今回の T7 では記法も検索実装も追加しない。
+
+## 2026-09-11 — T2 Editor 操作メールボックス
+
+### 変更内容
+
+指定済みの `feature/editor-control-mailbox` を前提に実装し、Git 操作は行っていない。
+T2 のみを追加した。`EditorControlMailbox` は `[InitializeOnLoad]` で起動し、
+Play 停止中も `DebugOutput/editor-mailbox/` の要求を `EditorApplication.update` で処理する。
+既存の `AiMailboxServer` / `AiCommandDispatcher` と Runtime の要求・応答形式は変更していない。
+
+追加 op は `status` / `play` / `stop` / `pause` / `unpause` / `focus_game_view` / `simulator_view` / `menu`。
+要求フィールドは `op` / `arg`（menu のメニューパスを渡す普通の文字列）。応答フィールドは `ok` / `message` のみ。
+`status` の message に `isPlaying` / `isPaused` / `isCompiling` / `focusedWindow` を格納する。
+bool は `True` / `False`、focusedWindow は前面 EditorWindow の完全型名、ウィンドウがなければ空文字列。
+
+`play` / `stop` / `pause` は要求受理を返し、応答の原子的公開と要求削除を済ませてから次の Editor 更新で適用する。
+反映の確認は呼び出し側が `status` で行う。コンパイル中は `status` 以外を拒否する。
+`unpause` は `EditorApplication.isPaused = false` を実行して解除の応答を返す。
+メニュー実行とフォーカスは成否を返し、フォーカス実装は T1 の `PlayModeViewFocus.TryFocus` を直接共用する。
+要求 JSON の検証・復元と拒否判定は `EditorControlRequest`、応答生成・JSON 化は `EditorControlResponse` に分離した。
+
+`AiMailboxFiles` の名前順走査・応答パス・原子的書き込みを共用し、JSON の構文検証には既存の `AiJsonObject` を使う。
+応答の I/O 失敗時は応答を保持して書き込みを再試行する。既存応答のある要求は再実行せず削除する。
+ポーリング間隔は定数 0.05 秒。初期化時に既存要求を走査し、その後は `FileSystemWatcher` の
+公開通知がある間隔にだけ走査する。通知バッファのエラー時も再走査する。
+`Directory.GetFiles` は必要な間隔につき最大1回、残ったパスは配列のまま持ち越す。
+通知のない通常待機では、時刻・通知フラグ・配列位置の比較だけで追加確保をしない。
+監視リソースとイベント購読はドメインリロード前・Editor 終了時に解放する。
+
+`editor_ctl.py` は標準ライブラリのみで、UUID・`.tmp` → rename・応答待ち・一行 JSON・成功 0 / 失敗 1 の
+流儀を `ai_client.py` に合わせた。`--mailbox` 省略時はカレントから親を探索し、
+初回は Unity プロジェクト構造からも解決する。応答待ちは `--timeout`（既定 60 秒）。
+Runtime 用の `.enabled` と `TESTIFY_MAILBOX` は使わない。
+
+### 仕様表と現物の差異・対応
+
+| 箇所 | 現物 | 対応 |
+|---|---|---|
+| 先に読む要求型 `AiMailboxRequest` | この型はなく、既存メールボックスは `AiCommandRequest`（`op` / `args`）を使う | 実際の `AiCommandRequest` と `AiMailboxFiles` を確認。T2 は指定の `EditorControlRequest`（`op` / `arg`）を新設 |
+| T1 の `PlayModeViewFocus` 共用 | `TryFocus` が private | internal に変更し summary を追加。型検索・ウィンドウ生成・Focus はそのまま共用 |
+| 要求・応答の配置と構成表 | 既存 Runtime の要求・応答は `Gateway/` 直下、`Mailbox/` は通信の責務 | Editor も要求・応答を `Gateway/` に配置。`Editor/Gateway/` は 1→3、`Editor/Gateway/Mailbox/` は指定どおり 1→2 |
+| 毎フレームの確保 | 既存サーバーはポーリングごとに `Directory.GetFiles` を呼ぶ | T2 は空走査の確保も避けるため、ファイル通知を走査の契機に使用。要求処理・Editor API 呼び出しは Editor 更新上に限定 |
+| Tests asmdef | `UniTestify.Editor` の参照なし | 参照を追加。要求・応答は既存 Runtime の DTO と同様 public とし、Editor 側の `InternalsVisibleTo` 追加は不要 |
+| 構成表の Tools | Tools の件数表が未掲載。Python は既存2ファイル | `editor_ctl.py` 追加後の3ファイルを表に掲載 |
+
+`status` の4値は、仕様の応答を `ok` / `message` の2項目に維持するため message に格納した。
+既存成果物の JSON は変更していないが、新しい Editor 応答契約も設計書12へ併記した。
+
+### 追加・変更ファイル一覧
+
+| ファイル | 種別 | 内容 |
+|---|---|---|
+| `Editor/Gateway/EditorControlRequest.cs` | 追加 | 要求 JSON の解釈・op / コンパイル中の拒否判定 |
+| `Editor/Gateway/EditorControlRequest.cs.meta` | 追加 | 新規 C# の GUID |
+| `Editor/Gateway/EditorControlResponse.cs` | 追加 | 受理・成功・失敗応答と JSON 化 |
+| `Editor/Gateway/EditorControlResponse.cs.meta` | 追加 | 新規 C# の GUID |
+| `Editor/Gateway/Mailbox/EditorControlMailbox.cs` | 追加 | Editor 常駐・通知・ポーリング・要求実行・応答公開 |
+| `Editor/Gateway/Mailbox/EditorControlMailbox.cs.meta` | 追加 | 新規 C# の GUID |
+| `Editor/Gateway/PlayModeViewFocus.cs` | 変更 | T1 の共用メソッドを internal に公開 |
+| `Tools/editor_ctl.py` | 追加 | Editor 操作用クライアント |
+| `Tools/editor_ctl.py.meta` | 追加 | Python ファイルの GUID |
+| `Tests/EditMode/Editor.meta` | 追加 | テストフォルダの GUID |
+| `Tests/EditMode/Editor/Gateway.meta` | 追加 | テストフォルダの GUID |
+| `Tests/EditMode/Editor/Gateway/Mailbox.meta` | 追加 | テストフォルダの GUID |
+| `Tests/EditMode/Editor/Gateway/Mailbox/EditorControlRequestTest.cs` | 追加 | 要求解釈・拒否判定・応答契約の純ロジックテスト |
+| `Tests/EditMode/Editor/Gateway/Mailbox/EditorControlRequestTest.cs.meta` | 追加 | 新規 C# の GUID |
+| `Tests/EditMode/UniTestify.Tests.EditMode.asmdef` | 変更 | `UniTestify.Editor` 参照を追加 |
+| `docs/getting-started.md` | 変更 | Editor 操作の導入・実行例・状態確認 |
+| `docs/ops-reference.md` | 変更 | Editor 専用の要求・応答と8つの op 表 |
+| `docs/architecture.md` | 変更 | 独立した Editor 経路、フォルダ件数、Tools、テスト対応 |
+| `docs/design/design-unilab-ai-12-ai-gateway.md` | 変更 | T2 のプロトコル・受理応答・常駐処理の記録 |
+| `docs/implementation.md` | 変更 | 本節 |
+
+### 追加したテスト名
+
+すべて `EditorControlRequestTest`。9メソッド、TestCase 展開後は38ケース。
+
+- `FromJsonPreservesMenuArgument`
+- `MissingArgumentDefaultsToEmpty`
+- `SupportedOperationsAreAccepted`
+- `CompilationRejectsEveryOperationExceptStatus`
+- `UnknownOperationReturnsFailure`
+- `MenuRequiresArgument`
+- `InvalidJsonIsRejected`
+- `AcceptedResponseDirectsCallerToStatus`
+- `ResponseContainsOnlyContractFields`
+
+### 静的確認と未実行の確認事項
+
+- 型定義・namespace・既存 using・アセンブリの公開範囲を照合した。追加先のファイル数は
+  `Editor/Gateway/` 3、`Editor/Gateway/Mailbox/` 2、Editor メールボックスのテストフォルダ 1、Tools の Python 3。
+  EditMode の C# は合計26ファイル。新規ファイル・フォルダに `.meta` を追加した。
+- 変更 C# を検索し、禁止依存・GetComponent 系・Awake / Start / Update の追加がないことを確認した。
+- Unity 起動・インポート・コンパイル・ビルド・C# / Python のテスト・クライアント実行はすべて未実行。
+  依頼者によるレビューと実機確認が必要。
+- 受け入れ確認: Play 停止状態で `editor_ctl.py play` の受理後、`status` を繰り返し、
+  `message` に `isPlaying=True` が現れること。`simulator_view` で Device Simulator が前面になること。
+- 併せて Pause / 解除 / Stop 後の status、Game View フォーカス、メニューの成功・失敗、
+  コンパイル中の status 許可と他 op 拒否、ドメインリロードあり／なしの Play 往復、
+  待機時の GC Alloc、原子的な要求公開の通知が利用側 Editor で機能することを確認する。
+  確認後は `stop` を送り、`isPlaying=False` を確認する。
+
+状態変更の非同期性は [Unity の isPlaying API](https://docs.unity3d.com/ScriptReference/EditorApplication-isPlaying.html)、
+監視の型・イベント・解放 API は [.NET の FileSystemWatcher 定義](https://github.com/dotnet/runtime/blob/main/src/libraries/System.IO.FileSystem.Watcher/src/System/IO/FileSystemWatcher.cs) でも確認した。
+
+### 提案（このランでは未実装）
+
+1. Editor メールボックスの応答保持期限を決めるべき。理由は常駐期間中に `res-*.json` が蓄積するため。
+2. `editor_ctl.py` のパス探索・タイムアウト・異常応答を Python のテストで固定すべき。理由は Editor を使わずに通信側の回帰を検出できるため。

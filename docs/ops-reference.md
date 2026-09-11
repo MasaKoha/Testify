@@ -1,7 +1,9 @@
 # op リファレンス
 
-すべての op は `AiCommandDispatcher` が実装し、メールボックス（`req-*.json`）と Unity 公式 CLI（`unity command ai_*`）の両方から同じ意味で呼べる。
+Runtime の op は `AiCommandDispatcher` が実装し、メールボックス（`req-*.json`）と Unity 公式 CLI（`unity command ai_*`）の両方から同じ意味で呼べる。
 **メールボックス経路は非同期**で、操作後の落ち着き待ち・撮影のファイル生成待ち・シナリオの完了待ちを済ませてから応答する。CLI 経路は同期で、要求した時点の結果を返す。
+
+Play 停止中も使う [Editor メールボックス](#editor-メールボックス) は `EditorControlMailbox` が処理する独立した入口。
 
 ## 要求・応答の形
 
@@ -47,6 +49,50 @@
 | `capture` | `name`（必須。英数字・`_`・`-`）, `directory`（既定 `DebugOutput/captures`）, `view`（`""` 既定 / `game` / `simulator`） | 画面を PNG に。`view` で Game View / Device Simulator を指定できる |
 | `snapshot` | `compact`(true), `save` | UI スナップショット（`all` 相当。ツール用） |
 | `console` | `count`(40), `level`（`all` / `error`） | Unity コンソールの末尾。Error/Exception はスタックトレース先頭 3 行付き |
+
+## Editor メールボックス
+
+`[InitializeOnLoad]` の `EditorControlMailbox` が `EditorApplication.update` で処理する。
+場所は `<Unity プロジェクト>/DebugOutput/editor-mailbox/`。Play 停止中・Pause 中も利用できる。
+Runtime 用の `agent-mailbox` / `AiCommandDispatcher` とは要求・応答を分ける。
+
+要求 `req-<id>.json`:
+
+```json
+{"op":"menu","arg":"Window/General/Console"}
+```
+
+`arg` は普通の文字列。menu 以外は省略または空文字列にする。
+`editor_ctl.py menu 'Window/General/Console'` のように、メニューパスを第2引数で渡す。
+
+応答 `res-<id>.json` は **`ok`（bool）と `message`（string）の2項目のみ**。
+`status` の状態値も `message` に格納する:
+
+```json
+{"ok":true,"message":"isPlaying=True isPaused=False isCompiling=False focusedWindow=UnityEditor.GameView"}
+```
+
+| op | arg | 応答の意味 |
+|---|---|---|
+| `status` | なし | `isPlaying` / `isPaused` / `isCompiling` / `focusedWindow`。bool は `True` / `False`、focusedWindow は前面 EditorWindow の完全型名（なければ空文字列） |
+| `play` | なし | Play 開始の要求受理。開始完了は `status` で確認 |
+| `stop` | なし | Play 停止の要求受理。停止完了は `status` で確認 |
+| `pause` | なし | Pause の要求受理。反映は `status` で確認 |
+| `unpause` | なし | `EditorApplication.isPaused = false` で Pause を解除 |
+| `focus_game_view` | なし | T1 の `PlayModeViewFocus` で Game View をフォーカス。適用不能なら `ok:false` |
+| `simulator_view` | なし | 同じ `PlayModeViewFocus` で Device Simulator をフォーカス。適用不能なら `ok:false` |
+| `menu` | メニューパス（必須） | `EditorApplication.ExecuteMenuItem` の成否。失敗なら `ok:false` |
+
+`play` / `stop` / `pause` は受理応答を公開してから、次の Editor 更新で状態変更を要求する。
+応答を受けた直後は以前の状態の場合がある。呼び出し側が `status` を繰り返して確認する。
+`isCompiling=True` の間は `status` 以外を `ok:false` で拒否する。
+未知 op、不正 JSON、op / arg が文字列でない要求、空のメニューパスも `ok:false` と理由を返す。
+
+ファイル公開は既存メールボックスと同じく、同一ディレクトリの `.tmp` を閉じてから rename する。
+正式要求を名前順に1件ずつ処理し、応答を公開できた要求だけ削除する。
+I/O 失敗時は応答を保持して書き込みを再試行し、同じ要求を実行し直さない。
+ポーリング間隔は定数 0.05 秒。起動時の走査後はファイル通知で走査を予約し、
+必要な間隔につき `Directory.GetFiles` は最大1回。待機中は通知フラグだけを確認し、空走査の確保を避ける。
 
 ## 撮影・観測対象（`view`）
 

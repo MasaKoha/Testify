@@ -9,7 +9,7 @@
  AiMailboxServer（MonoBehaviour、1 件ずつ非同期） Pipeline/[CliCommand]（同期）
    └────────────────────┬─────────────────────┘
                         ▼
-                AiCommandDispatcher（op → 実装。唯一の入口）
+                AiCommandDispatcher（Runtime op → 実装。共通の入口）
       ┌───────────┬───────────┬───────────┬────────────┐
       ▼           ▼           ▼           ▼            ▼
  AgentSession   UiSnapshot  AiCaptureSupport  AiScenarioExecution  AiConsoleLog
@@ -35,6 +35,14 @@ Editor の撮影対象選択は `Editor/Gateway/PlayModeViewFocus` が
 メールボックスの要求処理は既存の `AiCommandDispatcher.ExecuteAsync` 内でフォーカス → 解像度安定待ち
 （2 フレーム連続一致、上限 5 フレーム）→ 観測・撮影の順に進む。観測と撮影の間では yield しない。
 同期 CLI は view の適用成功時にフォーカスだけを行い、次回の view 未指定呼び出しで撮影・観測する。
+
+Editor 操作は `Tools/editor_ctl.py` → `DebugOutput/editor-mailbox/` →
+`EditorControlMailbox` → `EditorApplication` の独立した経路。
+`[InitializeOnLoad]` で常駐し、Play 停止中も `EditorApplication.update` で処理する。
+`EditorControlRequest` が JSON 解釈と検証、`EditorControlResponse` が `ok/message` の応答生成を担当し、
+Editor API 呼び出しはメールボックス側に限定する。フォーカスは T1 の `PlayModeViewFocus.TryFocus` を直接共用する。
+要求の公開通知を `FileSystemWatcher` で受け、定数 0.05 秒のポーリングで必要な走査だけを行う。
+監視とイベント購読はドメインリロード前・Editor 終了時に解放する。
 
 ## フォルダ構成
 
@@ -81,8 +89,8 @@ Editor の撮影対象選択は `Editor/Gateway/PlayModeViewFocus` が
 | `Runtime/Adapters/` | 4 | ゲーム状態・busy・コマンドの接続契約と登録窓口 |
 | `Runtime/Core/` | 3 | 出力先、アセンブリ属性、SerializeField 結線情報 |
 | `Runtime/RunArchive/` | 3 | ラン概要と性能・視覚回帰の要約モデル |
-| `Editor/Gateway/` | 1 | Game View / Device Simulator のフォーカス処理の登録 |
-| `Editor/Gateway/Mailbox/` | 1 | メールボックス起動メニュー |
+| `Editor/Gateway/` | 3 | Game View / Device Simulator のフォーカス処理、Editor 操作の要求・応答 |
+| `Editor/Gateway/Mailbox/` | 2 | Runtime メールボックス起動メニュー、Editor 操作メールボックス |
 | `Editor/RunArchive/` | 8 | 成果物の集約・索引生成、シナリオ成果物の読取モデル、メニュー |
 | `Editor/RunArchive/Export/` | 4 | 成果物の選択・コピー・配送 |
 | `Editor/RunArchive/References/` | 2 | コピー先の参照パスとシナリオ結果の書換え |
@@ -117,13 +125,22 @@ Editor の撮影対象選択は `Editor/Gateway/PlayModeViewFocus` が
 | `Tests/EditMode/Runtime/Recording/Output/` | 2 | `Runtime/Recording/Output/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Input/Overlay/Input/` | 1 | `Runtime/Input/Overlay/Input/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Ui/` | 3 | `Runtime/Ui/` に対応する EditMode テスト |
+| `Tests/EditMode/Editor/` | 0 | Editor 実装に対応するテストの親フォルダ |
+| `Tests/EditMode/Editor/Gateway/` | 0 | Editor ゲートウェイに対応するテストの親フォルダ |
+| `Tests/EditMode/Editor/Gateway/Mailbox/` | 1 | Editor 操作の要求 JSON・検証・応答契約の EditMode テスト |
+
+| ツールフォルダ | Python 数 | 配置する責務 |
+|---|---:|---|
+| `Tools/` | 3 | `ai_client.py`（Runtime 操作）、`editor_ctl.py`（Editor 操作）、`test_ai_client.py` |
 
 `Runtime/Prefabs/`（メールボックスの Prefab）と `Runtime/Resources/`（型付き参照アセット）は既存位置を維持する。
 既存スクリプトの `.meta` はスクリプトと対で移し、追加フォルダにも `.meta` を置く。
 
 テストは `Tests/EditMode/<実装アセンブリのルート>/<同じ機能パス>/` へ対応させる。
-現存する 25 ファイルはすべて Runtime 対象のため `Tests/EditMode/Runtime/` 以下に置く。
-Editor / Pipeline のテストを追加する場合も同じ対応規則に従い、テストのない機能に空フォルダは作らない。
+現存する 26 ファイルのうち 25 ファイルは Runtime、1 ファイルは Editor 対象。
+Editor 操作の要求・応答テストは仕様指定の `Editor/Gateway/Mailbox/` に配置する。
+Tests asmdef は `UniTestify` と `UniTestify.Editor` を参照する。
+Pipeline のテストを追加する場合も同じ対応規則に従い、テストのない機能に空フォルダは作らない。
 複数機能を検証する既存テストは主対象で配置する（`AgentExpectTest` は `Agent/Actions/`、
 `AgentExportTest` は `Agent/Session/`）。全ファイルの移動対応と判断は [実装記録](implementation.md) を参照。
 
