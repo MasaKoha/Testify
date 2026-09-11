@@ -24,7 +24,7 @@
 
 ## 2. Play 中にメールボックスを起動する
 
-AI クライアントは **ファイル I/O だけ** で Unity と話す（サンドボックスから localhost に届かない Codex でも使える）。Unity 側の `AiMailboxServer` が `DebugOutput/agent-mailbox/` を監視し、`req-*.json` を処理して `res-*.json` を書く。
+既定の AI クライアントは **ファイル I/O** で Unity と話す（サンドボックスから localhost に届かない環境でも使える）。Unity 側の `AiMailboxServer` が `DebugOutput/agent-mailbox/` を監視し、`req-*.json` を処理して `res-*.json` を書く。実機への HTTP 接続は [後述の接続手順](#6-実機へ-http-で一手ずつ接続する) を使う。
 
 起動方法は 3 つ（どれか 1 つ）:
 
@@ -98,7 +98,7 @@ python3 $CLIENT agent.end
 
 ### Codex から
 
-- サンドボックスは localhost に届かないので **メールボックス一択**。Codex には「このクライアントだけを使う。Unity を起動・終了しない」と指示する
+- localhost に届かないサンドボックスではメールボックスを使う。ネットワークが許可されたホストから実機へ接続する場合は HTTP を使える。Codex には「このクライアントだけを使う。Unity を起動・終了しない」と指示する
 - 指示書のひな形は利用側リポジトリに置く（karakuri: `tools/codex_playtest/brief_*.md`）。「どの画面を辿るか」「何を報告するか」を書き、Codex は `observe` の文字を根拠に判断する
 
 ## 4. ゲーム側の状態を観測に載せる（任意だが強く推奨）
@@ -222,11 +222,124 @@ adb pull "$DEVICE_OUTPUT" ./device-DebugOutput
 Editor も同じ起動引数を受け、Play 開始時に実行する。Editor の外部設定と成果物はプロジェクト直下の `DebugOutput/`。
 Android ではこの起動引数を読まない。
 
-## 6. うまくいかないとき
+## 6. 実機へ HTTP で一手ずつ接続する
+
+### ビルド前の設定
+
+T5 と同じ `Runtime/Resources/UniTestifySettings.asset` を編集し、Development Build に含める。
+初回起動前の外部ファイル配置は不要。自律実行用の `autorunScenarioPath` は空のままでよい。
+
+| フィールド | 設定例 | 既定値 |
+|---|---|---|
+| `httpEnabled` | `true` | `false` |
+| `httpPort` | `7910` | `7910`（0 なら自動割り当て） |
+| `httpToken` | 自分で決めたトークン | 空（起動ごとに生成） |
+| `httpAllowLan` | USB・同一 PC は `false`、Wi-Fi は `true` | `false` |
+
+トークンは空白を含まない ASCII 可視文字で指定する。
+起動シーンの読み込み後、`AiHttpServer` が有効な設定のときだけ開始し、シーン遷移後も常駐する。
+Editor では Play 中だけ動く。メールボックス用 `.enabled` は不要。
+`DebugOutputPath.DirectoryPath/http.enabled` に同じキーの JSON があれば、指定した項目だけ上書きする:
+
+```json
+{"httpEnabled":true,"httpPort":7910,"httpAllowLan":false}
+```
+
+変更は次回のアプリ起動／Editor の Play 開始で反映する。`{"httpEnabled":false}` で無効化できる。
+待受成功後、同じディレクトリの `http.port.json` に `{"port":7910,"token":"…"}` を書く。
+ポートを 0 にした場合は、この `port` を端末側の転送先に使う。
+空トークンから生成した場合は、この `token` をホストへコピーする。
+
+### Android（USB / adb forward）
+
+Player Settings の **Other Settings > Configuration > Internet Access を Require** にする。
+`HttpListener` を使うため、Manifest の `android.permission.INTERNET` を確実に含める。
+[Unity の Android Player Settings](https://docs.unity3d.com/Manual/class-PlayerSettingsAndroid.html) を参照。
+
+Development Build を起動し、ホストへ USB 接続した状態で実行する。
+`CLIENT` は導入方法に合わせた `ai_client.py` のパス、トークンはビルド設定と同じ値にする:
+
+```sh
+CLIENT=Packages/com.pisuke.unitestify/Tools/ai_client.py
+export TESTIFY_HTTP_TOKEN='replace-with-your-token'
+adb forward tcp:7910 tcp:7910
+
+python3 "$CLIENT" --transport http --url http://127.0.0.1:7910 ping
+python3 "$CLIENT" --transport http --url http://127.0.0.1:7910 agent.begin '{"goal":{"freePlay":true}}'
+python3 "$CLIENT" --transport http --url http://127.0.0.1:7910 agent.observe
+python3 "$CLIENT" --transport http --url http://127.0.0.1:7910 agent.act '{"action":{"submit":"NewGameButton"}}'
+```
+
+`agent.observe` は既存実装どおり、先に `agent.begin` でセッションを開始する必要がある。
+観測出力は Editor のメールボックスと同じ形式（メタデータ JSON ＋ 観測本文）。
+自動生成した接続情報は実際の `persistentDataPath` を使って回収する:
+
+```sh
+APPLICATION_ID='com.example.game'
+DEVICE_OUTPUT="/storage/emulated/0/Android/data/${APPLICATION_ID}/files/DebugOutput"
+adb pull "${DEVICE_OUTPUT}/http.port.json" ./http.port.json
+```
+
+`http.port.json` の `token` を `TESTIFY_HTTP_TOKEN` へ設定する。
+例えば実ポートが 54321 なら `adb forward tcp:7910 tcp:54321` とし、ホストの URL は 7910 のまま使える。
+操作終了後は `agent.end` を送り、`adb forward --remove tcp:7910` で転送を閉じる。
+
+### iOS（USB / iproxy）
+
+Development Build を起動し、端末を USB 接続してホストとの信頼を済ませる。
+`httpAllowLan:false` のまま、libusbmuxd の `iproxy` を別ターミナルで動かし続ける:
+
+```sh
+iproxy 7910 7910
+```
+
+これはホストの 7910 を端末の 7910 へ転送する。
+上の Android 例と同じ `TESTIFY_HTTP_TOKEN` と `--url http://127.0.0.1:7910` を使い、
+`agent.begin` → `agent.observe` → `agent.act` の順に呼ぶ。
+ポート 0・トークン空の場合は Xcode の Devices and Simulators などでアプリコンテナの
+`persistentDataPath/DebugOutput/http.port.json` を回収し、実際のポートとトークンを使う。
+初回は固定ポートとトークンをビルド設定へ含めると回収せずに接続できる。
+`iproxy` の現行 `7910:7910` 表記と従来の `7910 7910` 表記は
+[libusbmuxd の実装](https://github.com/libimobiledevice/libusbmuxd/blob/master/tools/iproxy.c) で確認できる。
+
+### iOS（同一 Wi-Fi）
+
+`httpAllowLan:true` とし、ホストと端末を同じ LAN へ接続する。
+`iproxy` を介さず、端末の IPv4 アドレスを指定する:
+
+```sh
+python3 "$CLIENT" --transport http --url http://192.168.1.20:7910 agent.begin '{"goal":{"freePlay":true}}'
+python3 "$CLIENT" --transport http --url http://192.168.1.20:7910 agent.observe
+```
+
+LAN 許可でもトークンは必須。実際のインターフェースのサブネットと一致する接続元だけを許可する。
+Unity 同梱 Mono では IPv6 のプレフィックス長が未実装のため、その環境の LAN 接続には IPv4 を使う。
+IPv6 のループバックは許可判定に対応する。
+
+iOS の LAN 利用ではローカルネットワークのプライバシー確認に対応し、
+アプリが LAN アクセスを要求する場合は `Info.plist` に `NSLocalNetworkUsageDescription` を用意する。
+ただし、設計表の「LAN 許可時に確認が出る」は OS 上の保証ではない。
+Apple は **TCP の待受・受信だけではローカルネットワーク許可を要求しない** としているため、
+T9 の待受だけでは確認が出ない場合がある。ループバックのみの接続は LAN アクセスを要求しない。
+確認表示を強制するための探索・送信は追加していない。
+[Apple TN3179](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy) を参照。
+
+### PC Standalone（直接接続）
+
+同じ PC 上の Development Build は `adb` / `iproxy` 不要。
+アプリを起動し、`TESTIFY_HTTP_TOKEN` を設定して `--url http://127.0.0.1:7910` で接続する。
+`agent.begin` 後の `agent.observe` が Editor と同じ観測形式を返すことを確認する。
+別 PC から接続する場合は `httpAllowLan:true` とし、同一 LAN のアプリ側アドレスを指定する。
+アプリは前面で動作させる。バックグラウンドで Unity のフレームが止まると、コマンドも完了しない。
+
+## 7. うまくいかないとき
 
 | 症状 | 見るところ |
 |---|---|
 | `ok:false, error:"応答待ちがタイムアウト"` | Play 中か、`.enabled` を置いた後に Play を始めたか。`UniTestify/Mailbox/Start` で手動起動 |
+| HTTP 接続できない | Development Build と `httpEnabled`、`http.port.json` の実ポート、USB 転送、アプリのフレーム進行、`[AiHttpServer]` の起動エラーを確認 |
+| HTTP `401` | `TESTIFY_HTTP_TOKEN` が今回の `http.port.json` の token またはビルド設定と一致するか |
+| HTTP `403` | USB 転送ならループバックか。LAN なら `httpAllowLan:true`、同一サブネット、IPv4 の接続先か |
 | `playMode が必要です` | `agent.*` は PlayMode 専用 |
 | `目標 JSON に期待値がありません` | `{"goal":{"freePlay":true}}` か `{"goal":{"goal":[{"kind":…}]}}` の形にする |
 | `submit 対象が見つかりません` | `agent.find` で名前を確認。同名行は `label:<部分一致>` で指定 |

@@ -4,10 +4,10 @@
 
 ```
  AI クライアント（Claude Code / Codex / 人）
-   │  ファイル I/O（req/res JSON）              │ Unity 公式 CLI（unity command ai_*）
-   ▼                                           ▼
- AiMailboxServer（MonoBehaviour、1 件ずつ非同期） Pipeline/[CliCommand]（同期）
-   └────────────────────┬─────────────────────┘
+   ├─ ファイル I/O → AiMailboxServer（1 件ずつ非同期）
+   ├─ POST /op    → AiHttpServer（1 件ずつ非同期）
+   └─ Unity 公式 CLI → Pipeline/[CliCommand]（同期）
+                        │
                         ▼
                 AiCommandDispatcher（Runtime op → 実装。共通の入口）
       ┌───────────┬───────────┬───────────┬────────────┐
@@ -35,6 +35,17 @@ Editor の撮影対象選択は `Editor/Gateway/PlayModeViewFocus` が
 メールボックスの要求処理は既存の `AiCommandDispatcher.ExecuteAsync` 内でフォーカス → 解像度安定待ち
 （2 フレーム連続一致、上限 5 フレーム）→ 観測・撮影の順に進む。観測と撮影の間では yield しない。
 同期 CLI は view の適用成功時にフォーカスだけを行い、次回の view 未指定呼び出しで撮影・観測する。
+
+実機への対話操作は `Tools/ai_client.py --transport http --url http://HOST:PORT` →
+`Runtime/Gateway/Http/AiHttpListener` → `AiHttpServer` → 同じ `AiCommandDispatcher.ExecuteAsync` の経路。
+`AfterSceneLoad` で T5 の `UniTestifySettings.asset` を読み、`DebugOutputPath.DirectoryPath/http.enabled`
+の指定キーで上書きする。既定は無効・ポート 7910・LAN 不許可。実ポートとトークンは `http.port.json` に公開する。
+`HttpListener` は `http://+:<port>/` を待ち受け、接続元と Bearer トークンを確認する。
+`GetContextAsync` と本文の読取・応答の書込はワーカーで行い、`AiHttpExchange` を要求キューへ積む。
+`AiHttpServer.Update` は一件ずつ取り出してコルーチンを開始する。ワーカーは応答までコンテキストを保持する。
+待機フレームで JSON 変換・ネットワーク列挙・LINQ・新規確保は行わない。
+停止時はコルーチンの `Dispose` と待受の `Close` で待機を解き、接続情報を削除する。
+要求・応答は既存の `AiCommandRequest` / `AiCommandResponse`。HTTP 独自の op や Pipeline の追加はない。
 
 Editor 操作は `Tools/editor_ctl.py` → `DebugOutput/editor-mailbox/` →
 `EditorControlMailbox` → `EditorApplication` の独立した経路。
@@ -81,6 +92,7 @@ Standalone / Editor の `-unitestify-scenario` のパスの順に上書きする
 | `Runtime/Gateway/` | 8 | 共通ディスパッチャ、要求・応答・引数、JSON 検証、直近ログ、実行状態 |
 | `Runtime/Gateway/Execution/` | 4 | 撮影の発行・完了待ち、撮影対象フォーカス・解像度安定待ち、シナリオ起動・結果待ち、入力後の静止待ち |
 | `Runtime/Gateway/Mailbox/` | 3 | ファイル要求・応答、ポーリングサーバー、Prefab の型付き参照 |
+| `Runtime/Gateway/Http/` | 5 | HTTP 起動ドライバ、ワーカーの待受・キュー、要求と応答待ちの対応、本文・認証・接続元の純ロジック、設定上書き |
 | `Runtime/Scenario/` | 9 | シナリオの入口・ステップ解釈、入力実行、成果物保存、記録の開始停止、起動時の自律実行 |
 | `Runtime/Scenario/Expectations/` | 3 | シナリオ期待値、評価器、失敗理由 |
 | `Runtime/Scenario/Results/` | 3 | シナリオ全体・ステップの結果、証拠パス |
@@ -137,6 +149,7 @@ Standalone / Editor の `-unitestify-scenario` のパスの順に上書きする
 | `Tests/EditMode/Runtime/Gateway/` | 3 | `Runtime/Gateway/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Gateway/Execution/` | 3 | `Runtime/Gateway/Execution/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Gateway/Mailbox/` | 2 | `Runtime/Gateway/Mailbox/` に対応する EditMode テスト |
+| `Tests/EditMode/Runtime/Gateway/Http/` | 1 | 本文の復元、Bearer 認証、ループバック・サブネット・設定上書きの純ロジック |
 | `Tests/EditMode/Runtime/Scenario/` | 1 | 自律実行の設定 JSON・既定値・上書き順の純ロジックテスト |
 | `Tests/EditMode/Runtime/Scenario/Expectations/` | 1 | 非 UI オブジェクトの存在・不在の一回評価 |
 | `Tests/EditMode/Runtime/Scene/` | 1 | 階層テキストの深さ・件数制限とアクティブ状態 |
@@ -152,13 +165,13 @@ Standalone / Editor の `-unitestify-scenario` のパスの順に上書きする
 
 | ツールフォルダ | Python 数 | 配置する責務 |
 |---|---:|---|
-| `Tools/` | 3 | `ai_client.py`（Runtime 操作）、`editor_ctl.py`（Editor 操作）、`test_ai_client.py` |
+| `Tools/` | 3 | `ai_client.py`（file / http の Runtime 操作）、`editor_ctl.py`（Editor 操作）、`test_ai_client.py` |
 
 `Runtime/Prefabs/`（メールボックスの Prefab）と `Runtime/Resources/`（型付き参照・ビルド設定アセット）は既存位置を維持する。
 既存スクリプトの `.meta` はスクリプトと対で移し、追加フォルダにも `.meta` を置く。
 
 テストは `Tests/EditMode/<実装アセンブリのルート>/<同じ機能パス>/` へ対応させる。
-現存する 32 ファイルのうち 31 ファイルは Runtime、1 ファイルは Editor 対象。
+現存する 33 ファイルのうち 32 ファイルは Runtime、1 ファイルは Editor 対象。
 Editor 操作の要求・応答テストは仕様指定の `Editor/Gateway/Mailbox/` に配置する。
 Tests asmdef は `UniTestify` と `UniTestify.Editor`、UI コンポーネントの検証用に `UnityEngine.UI` と `Unity.TextMeshPro` を参照する。
 Runtime asmdef も uGUI の型を直接利用するため `UnityEngine.UI` を明示参照する。

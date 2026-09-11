@@ -1,8 +1,9 @@
-"""Unity を起動せずメールボックスクライアントの入出力を検証する。"""
+"""Unity を起動せずメールボックスと HTTP クライアントの入出力を検証する。"""
 
 import contextlib
 import importlib.util
 import io
+from http import HTTPStatus
 import json
 import os
 from pathlib import Path
@@ -10,7 +11,8 @@ import tempfile
 import threading
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
+from urllib.error import HTTPError
 
 MODULE_PATH = Path(__file__).with_name("ai_client.py")
 SPECIFICATION = importlib.util.spec_from_file_location("ai_client", MODULE_PATH)
@@ -20,6 +22,63 @@ TEST_TIMEOUT_SECONDS = 2.0
 
 
 class AiClientTest(unittest.TestCase):
+    def test_http_request_preserves_protocol_and_formatted_output(self):
+        response_body = {"ok": True, "op": "agent.observe", "text": "観測\n本文", "settled": True}
+        connection = io.BytesIO(json.dumps(response_body, ensure_ascii=False).encode("utf-8"))
+        connection.getcode = lambda: HTTPStatus.OK
+        opener = Mock()
+        opener.open.return_value = connection
+        output = io.StringIO()
+        with patch.dict(os.environ, {CLIENT.HTTP_TOKEN_ENVIRONMENT: "device-token"}), \
+                patch.object(CLIENT, "build_opener", return_value=opener), \
+                patch.object(CLIENT, "resolve_mailbox") as resolve_mailbox, contextlib.redirect_stdout(output):
+            result = CLIENT.main(["--transport", "http", "--url", "http://127.0.0.1:7910/",
+                                  "agent.observe", '{"capture":"日本語"}'])
+        resolve_mailbox.assert_not_called()
+        http_request = opener.open.call_args.args[0]
+        self.assertEqual(http_request.full_url, "http://127.0.0.1:7910/op")
+        self.assertEqual(http_request.get_method(), "POST")
+        self.assertEqual(http_request.get_header("Authorization"), "Bearer device-token")
+        self.assertEqual(http_request.get_header("Content-type"), "application/json; charset=utf-8")
+        payload = json.loads(http_request.data.decode("utf-8"))
+        self.assertEqual(payload["op"], "agent.observe")
+        self.assertEqual(json.loads(payload["args"]), {"capture": "日本語"})
+        self.assertEqual(opener.open.call_args.kwargs["timeout"], CLIENT.DEFAULT_TIMEOUT_SECONDS)
+        self.assertTrue(connection.closed)
+        self.assertEqual(result, 0)
+        lines = output.getvalue().splitlines()
+        self.assertEqual(json.loads(lines[0]), {"ok": True, "op": "agent.observe", "settled": True})
+        self.assertEqual(lines[1:], ["観測", "本文"])
+
+    def test_http_authentication_error_preserves_server_response(self):
+        response_body = {"ok": False, "error": "invalid bearer token", "text": ""}
+        error_stream = io.BytesIO(json.dumps(response_body).encode("utf-8"))
+        http_error = HTTPError("http://127.0.0.1:7910/op", HTTPStatus.UNAUTHORIZED, "Unauthorized", {}, error_stream)
+        opener = Mock()
+        opener.open.side_effect = http_error
+        output = io.StringIO()
+        with patch.dict(os.environ, {CLIENT.HTTP_TOKEN_ENVIRONMENT: "wrong-token"}), \
+                patch.object(CLIENT, "build_opener", return_value=opener), contextlib.redirect_stdout(output):
+            result = CLIENT.main(["--transport", "http", "--url", "http://127.0.0.1:7910", "ping"])
+        self.assertEqual(result, 1)
+        self.assertEqual(json.loads(output.getvalue()), {"ok": False, "error": "invalid bearer token"})
+        self.assertTrue(error_stream.closed)
+
+    def test_http_missing_configuration_is_rejected_before_connecting(self):
+        configurations = ((None, "token"), ("http://127.0.0.1:7910", ""),
+                          ("https://127.0.0.1:7910", "token"), ("http://127.0.0.1:7910/op", "token"))
+        for url, token in configurations:
+            with self.subTest(url=url, token=token), patch.dict(os.environ, {CLIENT.HTTP_TOKEN_ENVIRONMENT: token}), \
+                    patch.object(CLIENT, "build_opener") as build_opener:
+                with self.assertRaises(ValueError):
+                    CLIENT.request_http(url, "ping", {}, TEST_TIMEOUT_SECONDS)
+                build_opener.assert_not_called()
+
+    def test_http_redirect_is_not_followed(self):
+        handler = CLIENT.RejectHttpRedirects()
+        self.assertIsNone(handler.redirect_request(None, None, HTTPStatus.TEMPORARY_REDIRECT,
+                                                  "redirect", {}, "http://another-host/op"))
+
     def test_atomic_request_and_formatted_response(self):
         with tempfile.TemporaryDirectory() as directory:
             mailbox = Path(directory)

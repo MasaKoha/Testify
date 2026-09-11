@@ -9,6 +9,36 @@ CLI と Unity 内蔵メールボックスの実行先を `AiCommandDispatcher` �
 この PR は `Assets/UniLab.AI/` の外を変更しないため、設計書・roadmap 追記・EditMode テストも
 この階層内に置く。テストアセンブリ名は `UniLab.AI.Tests.EditMode`。
 
+## T9: 実機向け HTTP 入口（2026-09-11）
+
+`Runtime/Gateway/Http/AiHttpServer` を `AfterSceneLoad` で起動する。
+`UniTestifySettings.asset` の `httpEnabled=false` / `httpPort=7910` / `httpToken=""` /
+`httpAllowLan=false` を読み、`DebugOutputPath.DirectoryPath/http.enabled` の同名キーで部分上書きする。
+空のトークンは起動ごとに生成し、ポート 0 は空きポートを割り当てる。
+待受成功後に `http.port.json` へ `{"port":<実ポート>,"token":"<実効トークン>"}` を公開する。
+この接続情報は起動前と正常停止時に削除し、設定アセットは変更しない。
+
+`HttpListener` の prefix は `http://+:<port>/`。`POST /op` の本文は既存メールボックスと同じ
+`AiCommandRequest`（`op` / JSON 文字列の `args`）であり、計画表の `AiMailboxRequest` は実在しない。
+応答は既存の `AiCommandResponse` 全体。新規 op・引数・共通応答フィールド・Pipeline の追加はない。
+ワーカーの `GetContextAsync` → 接続元・Bearer 認証 → 本文の復元 → キュー公開の順で受け付ける。
+`Update` は一件ずつ `AiCommandDispatcher.ExecuteAsync` のコルーチンを開始し、
+ワーカーは完了通知までコンテキストを保持してから応答する。停止でコルーチンとソケットを解放する。
+
+既定は `IPAddress.IsLoopback` 以外を 403、Bearer 不一致を 401 とする。
+`httpAllowLan:true` でも同一サブネットだけを許可する。IPv4 は実インターフェースのマスクで照合し、
+IPv6 のプレフィックスを取得できない Unity 同梱 Mono では IPv6 LAN を拒否する（Wi-Fi は IPv4 を使用）。
+不正本文 400、未知パス 404、POST 以外 405 も共通の `ok:false` / `error` で返す。
+ディスパッチャが受けた op は HTTP 200 で応答し、成否は既存の `ok` を使う。
+
+`ai_client.py` は `--transport file|http`（既定 file）と `--url http://HOST:PORT` を受ける。
+HTTP のトークンは環境変数 `TESTIFY_HTTP_TOKEN` から取得する。
+HTTP 応答 JSON の `text` を分離し、従来と同じメタデータ一行＋観測本文を標準出力へ出す。
+`agent.observe` は既存どおり `agent.begin` の後に使う。
+設定・エラー・接続元判定の詳細は [HTTP リファレンス](../ops-reference.md#http-入口)、
+Android の Internet Access Require、`adb forward` / `iproxy`、iOS LAN プライバシーの
+OS 仕様との差異は [接続手順](../getting-started.md#6-実機へ-http-で一手ずつ接続する) に記録する。
+
 ## 操作一覧
 
 `AiCommandRequest` は `op` と `args` を持つ。`args` は JSON オブジェクトを格納した**文字列**で、

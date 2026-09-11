@@ -8,7 +8,7 @@ AI エージェント（Claude Code / Codex）が Unity ゲームを動かして
 |---|---|
 | `Runtime/` | `UniTestify.asmdef` を維持。C# は機能フォルダへ配置 |
 | `Runtime/Agent/` | セッション入口・観測・検索。`Actions/` は行動、`Goals/` は目標判定、`Session/` は停止判定・履歴・成果物 |
-| `Runtime/Gateway/` | `AiCommandDispatcher` と要求・応答。`Execution/` は撮影・シナリオ・静止待ち、`Mailbox/` はファイル要求・応答とサーバー |
+| `Runtime/Gateway/` | `AiCommandDispatcher` と要求・応答。`Execution/` は撮影・シナリオ・静止待ち、`Mailbox/` はファイル要求・応答、`Http/` は実機向け HTTP 入口 |
 | `Runtime/Scenario/` | シナリオ実行。`Expectations/` は期待値判定、`Results/` は結果・証拠モデル |
 | `Runtime/Snapshot/`・`Runtime/Ui/`・`Runtime/Scene/` | UI 観測、UI 操作対象・可視性・監査、シーン階層 |
 | `Runtime/Input/` | 入力注入・記録・再生。`Overlay/` は可視化、`Overlay/Input/` は入力取得・押下状態 |
@@ -18,8 +18,8 @@ AI エージェント（Claude Code / Codex）が Unity ゲームを動かして
 | `Runtime/Prefabs/`・`Runtime/Resources/` | メールボックスの Prefab と型付き参照アセット（既存位置を維持） |
 | `Editor/` | asmdef を維持。`RunArchive/`・`VisualRegression/` に集約・比較機能、`Gateway/Mailbox/`・`Scenario/`・`Snapshot/`・`Scene/`・`Ui/` に各機能のメニュー |
 | `Pipeline/` | asmdef を維持。`Agent/`・`Gateway/`（`Execution/`・`Mailbox/`）・`Scenario/`・`Snapshot/`・`Forensics/`・`Monkey/` に Unity 公式 CLI の薄いラッパ。`TESTIFY_PIPELINE` define で任意依存 |
-| `Tests/EditMode/` | asmdef を維持。`Runtime/<実装と同じ機能パス>/` に純ロジックの既存テスト 20 ファイルを対応配置 |
-| `Tools/ai_client.py` | 標準ライブラリだけの共通クライアント（メールボックス経由） |
+| `Tests/EditMode/` | asmdef を維持。`Runtime/`・`Editor/` の実装と同じ機能パスへ純ロジックのテストを対応配置 |
+| `Tools/ai_client.py` | 標準ライブラリだけの共通クライアント（既定 file、実機向け http） |
 | `TestProject/` | テスト実行用の最小 Unity プロジェクト。`Packages/manifest.json` がこのパッケージを `file:../../` で参照する |
 | `docs/` | 利用者向け解説。`docs/design/` は設計書（判断の記録） |
 
