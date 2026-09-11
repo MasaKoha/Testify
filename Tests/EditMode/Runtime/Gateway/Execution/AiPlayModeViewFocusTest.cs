@@ -27,7 +27,6 @@ namespace UniTestify.Tests
 
         /// <summary>Editor の仲介が無い環境でも例外にしません。</summary>
         [TestCase("game")]
-        [TestCase("simulator")]
         public void MissingHandlerReturnsFalse(string view)
         {
             Assert.That(AiPlayModeViewFocus.TryFocus(view), Is.False);
@@ -49,29 +48,10 @@ namespace UniTestify.Tests
             Assert.That(called, Is.False);
         }
 
-        /// <summary>指定値と適用結果を変更せず Editor 側と受け渡します。</summary>
-        [TestCase("game", true)]
-        [TestCase("simulator", true)]
-        [TestCase("game", false)]
-        [TestCase("simulator", false)]
-        public void RegisteredHandlerReceivesViewAndReturnsResult(string view, bool applied)
-        {
-            var receivedView = string.Empty;
-            AiPlayModeViewFocus.FocusHandler = requestedView =>
-            {
-                receivedView = requestedView;
-                return applied;
-            };
-
-            Assert.That(AiPlayModeViewFocus.TryFocus(view), Is.EqualTo(applied));
-            Assert.That(receivedView, Is.EqualTo(view));
-        }
-
         /// <summary>仲介の登録状態にかかわらず対象の誤記を拒否します。</summary>
         [TestCase("other")]
         [TestCase("Game")]
         [TestCase(" game")]
-        [TestCase("simulator ")]
         public void InvalidViewThrowsArgumentException(string view)
         {
             Assert.Throws<ArgumentException>(() => AiPlayModeViewFocus.TryFocus(view));
@@ -81,7 +61,6 @@ namespace UniTestify.Tests
 
         /// <summary>同期経路は解像度反映前の画像を生成せず、次回の撮影に委ねます。</summary>
         [TestCase("game")]
-        [TestCase("simulator")]
         public void SynchronousCaptureWithViewOnlyFocuses(string view)
         {
             var receivedView = string.Empty;

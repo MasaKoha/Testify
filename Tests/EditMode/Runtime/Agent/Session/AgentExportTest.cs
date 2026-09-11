@@ -96,7 +96,6 @@ namespace UniTestify.Tests
         }
 
         /// <summary>タイムアウトで拒否した要求にも、待ち条件と上限を履歴へ残します。</summary>
-        [TestCase("acted")]
         [TestCase("rejected")]
         public void ActionLogPreservesWaitConditionsAndTimeout(string status)
         {

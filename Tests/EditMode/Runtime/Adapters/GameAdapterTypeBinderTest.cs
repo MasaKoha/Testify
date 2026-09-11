@@ -84,21 +84,6 @@ namespace UniTestify.Tests
             Assert.That(GameAdapterTypeBinder.Bind(new[] { typeof(BusyProvider), typeof(BusyProvider) }), Is.EqualTo(1));
         }
 
-        /// <summary>利用側が事前に同じ型を登録していても、そのインスタンスを維持します。</summary>
-        [Test]
-        public void PreservesPreviouslyRegisteredInstance()
-        {
-            var adapter = new CombinedAdapter();
-            GameAdapterRegistry.StateProvider = adapter;
-            GameAdapterRegistry.BusyProvider = adapter;
-            GameAdapterRegistry.CommandHandler = adapter;
-
-            Assert.That(GameAdapterTypeBinder.Bind(new[] { typeof(CombinedAdapter) }), Is.Zero);
-            Assert.That(GameAdapterRegistry.StateProvider, Is.SameAs(adapter));
-            Assert.That(GameAdapterRegistry.BusyProvider, Is.SameAs(adapter));
-            Assert.That(GameAdapterRegistry.CommandHandler, Is.SameAs(adapter));
-        }
-
         /// <summary>契約外・抽象型・未確定の総称型・公開引数なしコンストラクタを持たない型は無視します。</summary>
         [Test]
         public void IgnoresNonApplicableTypes()

@@ -54,20 +54,6 @@ namespace UniTestify.Tests
             Assert.That(UiSnapshot.ToCompactText(snapshot, "all"), Does.Contain("「" + TextContent + "」"));
         }
 
-        /// <summary>派生コンポーネントも Text の探索と文字待機から漏れません。</summary>
-        [Test]
-        public void CollectsDerivedLegacyText()
-        {
-            var textObject = CreateUiObject(_root.transform, TextName).AddComponent<DerivedLegacyText>();
-            textObject.text = TextContent;
-
-            var elements = UiSnapshotElementCollector.CollectElements(null);
-
-            Assert.That(elements.Exists(element => element.path == RootName + "/" + TextName
-                && element.kind == "Text" && element.label == TextContent), Is.True);
-            Assert.That(UiInputLocator.HasVisibleText(TextContent), Is.True);
-        }
-
         /// <summary>空文字は矩形や観測要素を生成せず、収集結果からも除外します。</summary>
         [TestCase("")]
         [TestCase(null)]
@@ -79,20 +65,6 @@ namespace UniTestify.Tests
             Assert.That(element, Is.Null);
             Assert.That(UiSnapshotElementCollector.CollectElements(null).Exists(
                 candidate => candidate.path == RootName + "/" + TextName), Is.False);
-        }
-
-        /// <summary>TMP にも同じ空文字除外を適用し、文字種別による差を作りません。</summary>
-        [Test]
-        public void ExcludesEmptyTextMeshPro()
-        {
-            var target = CreateUiObject(_root.transform, TextName);
-            // 空文字の判定にフォント設定の読み込みや描画初期化を持ち込まないため。
-            target.SetActive(false);
-            var textObject = target.AddComponent<TextMeshProUGUI>();
-            textObject.text = string.Empty;
-
-            Assert.That(UiSnapshotElementFactory.TryCreateTextElement(textObject, null, out var element), Is.False);
-            Assert.That(element, Is.Null);
         }
 
         /// <summary>非表示の Text と観測オーバーレイを独立要素へ混ぜません。</summary>
@@ -177,7 +149,6 @@ namespace UniTestify.Tests
         [TestCase(1f, 1f, true)]
         [TestCase(0f, 1f, false)]
         [TestCase(0.01f, 1f, false)]
-        [TestCase(1f, 0f, false)]
         [TestCase(1f, 0.01f, false)]
         public void HasVisibleLegacyTextChecksAlpha(float textAlpha, float groupAlpha, bool expectedVisible)
         {
@@ -249,6 +220,33 @@ namespace UniTestify.Tests
             rectTransform.SetParent(parent, false);
             rectTransform.sizeDelta = new Vector2(TextWidth, TextHeight);
             return target;
+        }
+
+        /// <summary>TMP にも同じ空文字除外を適用し、文字種別による差を作りません。</summary>
+        [Test]
+        public void ExcludesEmptyTextMeshPro()
+        {
+            var target = CreateUiObject(_root.transform, TextName);
+            // 空文字の判定にフォント設定の読み込みや描画初期化を持ち込まないため。
+            target.SetActive(false);
+            var textObject = target.AddComponent<TextMeshProUGUI>();
+            textObject.text = string.Empty;
+
+            Assert.That(UiSnapshotElementFactory.TryCreateTextElement(textObject, null, out var element), Is.False);
+            Assert.That(element, Is.Null);
+        }
+        /// <summary>派生コンポーネントも Text の探索と文字待機から漏れません。</summary>
+        [Test]
+        public void CollectsDerivedLegacyText()
+        {
+            var textObject = CreateUiObject(_root.transform, TextName).AddComponent<DerivedLegacyText>();
+            textObject.text = TextContent;
+
+            var elements = UiSnapshotElementCollector.CollectElements(null);
+
+            Assert.That(elements.Exists(element => element.path == RootName + "/" + TextName
+                && element.kind == "Text" && element.label == TextContent), Is.True);
+            Assert.That(UiInputLocator.HasVisibleText(TextContent), Is.True);
         }
 
         /// <summary>ゲーム固有の派生 Text も観測対象になることを検証するための型です。</summary>

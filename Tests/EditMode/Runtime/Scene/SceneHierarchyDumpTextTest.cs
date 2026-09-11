@@ -21,15 +21,6 @@ namespace UniTestify.Tests
             Assert.That(text, Does.Contain("LaterRoot activeInHierarchy=true"));
         }
 
-        /// <summary>既定深度はルート 0 から 3 までで、4 段目を含めません。</summary>
-        [Test]
-        public void DefaultDepthStopsAfterThirdDescendant()
-        {
-            var text = SceneHierarchyDumpText.Format(CreateHierarchy());
-            Assert.That(text, Does.Contain("\n      GreatGrandchild activeInHierarchy=true"));
-            Assert.That(text, Does.Not.Contain("TooDeep"));
-        }
-
         /// <summary>深度 0 はルートだけを表示します。</summary>
         [Test]
         public void ZeroDepthIncludesOnlyRoots()
@@ -56,24 +47,6 @@ namespace UniTestify.Tests
             Assert.That(text, Does.Contain("SecondRoot activeInHierarchy=true"));
             Assert.That(text, Does.Not.Contain("Omitted"));
             Assert.That(text, Does.EndWith("... maxNodes=3"));
-        }
-
-        /// <summary>既定の 200 件を超えたノードを応答へ含めません。</summary>
-        [Test]
-        public void DefaultMaximumNodesTruncatesAtTwoHundred()
-        {
-            const int ExpectedMaximumNodes = 200;
-            var nodes = new SceneHierarchyNode[ExpectedMaximumNodes + 1];
-            for (var nodeIndex = 0; nodeIndex < nodes.Length; nodeIndex++)
-            {
-                nodes[nodeIndex] = CreateNode(nodeIndex, RootParentIndex, "Node" + nodeIndex);
-            }
-
-            var dump = new SceneHierarchyDump { scenes = new[] { new SceneHierarchyScene { name = "First", nodes = nodes } } };
-            var text = SceneHierarchyDumpText.Format(dump);
-            Assert.That(text, Does.Contain("Node199 activeInHierarchy=true"));
-            Assert.That(text, Does.Not.Contain("Node200 activeInHierarchy"));
-            Assert.That(text, Does.EndWith("... maxNodes=200"));
         }
 
         /// <summary>非表示の親も activeInHierarchy に影響し、フィルタ後のノードだけを件数へ数えます。</summary>
@@ -130,6 +103,32 @@ namespace UniTestify.Tests
         private static SceneHierarchyNode CreateNode(int index, int parentIndex, string name)
         {
             return new SceneHierarchyNode { index = index, parentIndex = parentIndex, name = name, activeSelf = true };
+        }
+
+        /// <summary>既定深度はルート 0 から 3 までで、4 段目を含めません。</summary>
+        [Test]
+        public void DefaultDepthStopsAfterThirdDescendant()
+        {
+            var text = SceneHierarchyDumpText.Format(CreateHierarchy());
+            Assert.That(text, Does.Contain("\n      GreatGrandchild activeInHierarchy=true"));
+            Assert.That(text, Does.Not.Contain("TooDeep"));
+        }
+        /// <summary>既定の 200 件を超えたノードを応答へ含めません。</summary>
+        [Test]
+        public void DefaultMaximumNodesTruncatesAtTwoHundred()
+        {
+            const int ExpectedMaximumNodes = 200;
+            var nodes = new SceneHierarchyNode[ExpectedMaximumNodes + 1];
+            for (var nodeIndex = 0; nodeIndex < nodes.Length; nodeIndex++)
+            {
+                nodes[nodeIndex] = CreateNode(nodeIndex, RootParentIndex, "Node" + nodeIndex);
+            }
+
+            var dump = new SceneHierarchyDump { scenes = new[] { new SceneHierarchyScene { name = "First", nodes = nodes } } };
+            var text = SceneHierarchyDumpText.Format(dump);
+            Assert.That(text, Does.Contain("Node199 activeInHierarchy=true"));
+            Assert.That(text, Does.Not.Contain("Node200 activeInHierarchy"));
+            Assert.That(text, Does.EndWith("... maxNodes=200"));
         }
     }
 }

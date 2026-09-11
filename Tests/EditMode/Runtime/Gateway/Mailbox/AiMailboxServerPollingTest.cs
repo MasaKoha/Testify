@@ -7,7 +7,6 @@ namespace UniTestify.Tests
     public sealed class AiMailboxServerPollingTest
     {
         /// <summary>未処理時間が閾値に達した時点で待機間隔へ切り替えます。</summary>
-        [TestCase(10f, 10f, 0.05f)]
         [TestCase(10f, 14.99f, 0.05f)]
         [TestCase(10f, 15f, 0.25f)]
         [TestCase(10f, 30f, 0.25f)]

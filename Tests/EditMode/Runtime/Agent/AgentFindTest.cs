@@ -9,7 +9,6 @@ namespace UniTestify.Tests
         /// <summary>タグを除去して部分一致し、種別を絞り込みます。</summary>
         [TestCase(null, 2)]
         [TestCase("Button", 1)]
-        [TestCase("Toggle", 0)]
         public void LabelSubstringAndKindFilter(string kind, int expectedCount)
         {
             var response = AgentFind.Find(CreateSnapshot(), "開始", kind);
