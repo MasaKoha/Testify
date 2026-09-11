@@ -19,7 +19,6 @@ namespace UniTestify
         private const string StepPhaseNone = "none", StepPhaseMonkey = "monkey", StepPhaseReady = "ready", StepPhaseBeforeSnapshot = "beforeSnapshot", StepPhaseAction = "action";
         private const string StepPhaseWaitScene = "waitScene", StepPhaseSettle = "settle", StepPhaseAfterSnapshot = "afterSnapshot", StepPhaseArtifacts = "artifacts";
         private const string StepPhaseExpectations = "expectations", StepPhaseStopRecording = "stopRecording", StepPhaseResult = "result";
-        private const double StepTimeoutSeconds = 30.0;
         private const double StepTimeoutMultiplier = 2.0;
         private readonly List<ScenarioStepResult> _stepResults = new List<ScenarioStepResult>();
         private readonly List<ScenarioExpectationFailure> _currentFailures = new List<ScenarioExpectationFailure>();
@@ -152,7 +151,9 @@ namespace UniTestify
             var stepCompleted = false;
             Exception caughtException = null;
             var startedAt = Time.realtimeSinceStartupAsDouble;
-            var timeoutSeconds = StepTimeoutSeconds * StepTimeoutMultiplier;
+            var waitTimeoutSeconds = UiScenarioStepReader.GetTimeoutSeconds(UiScenarioStepReader.EnsureStep(step));
+            // 短い準備待ちを指定しても、従来の入力・撮影の実行猶予は縮めない。
+            var timeoutSeconds = Math.Max(UiScenarioStep.DefaultTimeoutSeconds, waitTimeoutSeconds) * StepTimeoutMultiplier;
             var guardedCoroutine = StartCoroutine(GuardCoroutine(
                 ExecuteStepCoroutine(step, stepIndex),
                 exception => caughtException = exception,
@@ -324,9 +325,10 @@ namespace UniTestify
         private IEnumerator WaitForReadyCoroutine(UiScenarioStep step, int stepIndex, Action<float> setWaitedSeconds, Action<string> setFailure)
         {
             var startedAt = Time.realtimeSinceStartupAsDouble;
+            var timeoutSeconds = UiScenarioStepReader.GetTimeoutSeconds(step);
             while (!IsReady(step, out var failureMessage))
             {
-                if (Time.realtimeSinceStartupAsDouble - startedAt > StepTimeoutSeconds)
+                if (Time.realtimeSinceStartupAsDouble - startedAt > timeoutSeconds)
                 {
                     _warningCount++;
                     setWaitedSeconds((float)(Time.realtimeSinceStartupAsDouble - startedAt));
@@ -364,9 +366,10 @@ namespace UniTestify
                 yield break;
             }
             var startedAt = Time.realtimeSinceStartupAsDouble;
+            var timeoutSeconds = UiScenarioStepReader.GetTimeoutSeconds(step);
             while (!UiInputLocator.IsSceneLoaded(step.waitScene))
             {
-                if (Time.realtimeSinceStartupAsDouble - startedAt > StepTimeoutSeconds)
+                if (Time.realtimeSinceStartupAsDouble - startedAt > timeoutSeconds)
                 {
                     _warningCount++;
                     AddFailure("waitScene", step.waitScene, string.Empty, "操作後のシーン待ちがタイムアウトしました。", string.Empty);

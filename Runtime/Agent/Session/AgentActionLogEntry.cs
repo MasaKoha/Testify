@@ -24,6 +24,21 @@ namespace UniTestify
         /// <summary>外部 LLM がその手を選んだ理由です。</summary>
         public string reason;
 
+        /// <summary>行動に先立つ表示待ちの条件です。</summary>
+        public string waitForText;
+
+        /// <summary>行動に先立つ対象の準備待ち条件です。</summary>
+        public string waitForObject;
+
+        /// <summary>行動に先立つフォーカス待ち条件です。</summary>
+        public string waitForFocus;
+
+        /// <summary>行動に先立つシーン待ち条件です。</summary>
+        public string waitForScene;
+
+        /// <summary>待機条件に適用した実時間上限です。</summary>
+        public float timeoutSeconds;
+
         /// <summary>拒否・成功・上限到達を外部から機械判定するための状態です。</summary>
         public string status;
 

@@ -145,7 +145,7 @@ namespace UniTestify
                 return "pinch を開始しました。";
             }
 
-            return "解釈できる入力がありません。";
+            return AgentActionWait.HasConditions(action) ? "待機条件が成立しました。" : "解釈できる入力がありません。";
         }
 
         private string ExecuteSubmit(string targetName)
@@ -207,6 +207,7 @@ namespace UniTestify
             if (!string.IsNullOrEmpty(action.tap)) { return "tap"; }
             if (!string.IsNullOrEmpty(action.swipe)) { return "swipe"; }
             if (!string.IsNullOrEmpty(action.pinch)) { return "pinch"; }
+            if (AgentActionWait.HasConditions(action)) { return "wait"; }
             return string.Empty;
         }
 

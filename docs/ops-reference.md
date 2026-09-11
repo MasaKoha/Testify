@@ -23,8 +23,8 @@ Play 停止中も使う [Editor メールボックス](#editor-メールボッ�
 | `message` | 人向けの補足（`セッションを開始しました。` 等） |
 | `text` | 本文（観測テキスト・検索結果・ログ） |
 | `path` | 成果物の絶対パス（撮影 PNG・scenario.json・結果 JSON） |
-| `settled` | 非同期経路で落ち着き待ちを済ませたか |
-| `ready` / `waitedMs` | `submit`/`click`/`tap` の対象が押せるまで待って押せたか、待った実時間 |
+| `settled` | 非同期経路で落ち着き待ちを済ませたか。待機だけの `agent.act` はアンカー成立時に true |
+| `ready` / `waitedMs` | 非同期 `agent.act` のアンカーと操作対象の準備が成立したか、両方の待機に費やした合計ミリ秒 |
 | `elapsedMs` | 要求受理から応答までの実時間 |
 | `width` / `height` / `blank` | 撮影の画像サイズと白紙判定（輝度の標準偏差 3.0 未満） |
 | `view` | 今回フォーカスを適用した `game` / `simulator`。未指定・適用不能時は空文字列 |
@@ -39,7 +39,7 @@ Play 停止中も使う [Editor メールボックス](#editor-メールボッ�
 | `ops` | – | op 名の一覧 |
 | `agent.begin` | `goal`（必須）, `options` | セッション開始。`goal` は `{"freePlay":true,"maxSteps":5000,"maxSeconds":14400}` か `{"goal":[{"kind":"textVisible","value":"…"}],"maxSteps":…}`。期待値 0 件で freePlay でもない目標は拒否。`options`: `{"stuckRepeatLimit":40,"inputMode":"gamepad","settleFrames":1}` |
 | `agent.observe` | `diffOnly`, `scope`（`visible` 既定 / `all`）, `capture`（撮影名）, `directory`, `view`（`""` 既定 / `game` / `simulator`） | 観測テキスト。`capture` を付けると同じフレームで撮影し `path/width/height/blank` を埋める。`view` の経路別動作は下記 |
-| `agent.act` | `action` または `steps[]`, `expect[]`, `settleSeconds`(0.35), `settleTimeoutSeconds`(10), `readyTimeoutSeconds`(5) | 1 手または複数手。各手: 準備待ち → 実行 → 落ち着き待ち → 観測。`steps` は `status` が `running` 以外か `expect` 未達で打ち切り |
+| `agent.act` | `action` または `steps[]`（各手に `waitForText` / `waitForObject` / `waitForFocus` / `waitForScene`、`timeoutSeconds`(30)）, `expect[]`, `settleSeconds`(0.35), `settleTimeoutSeconds`(10), `readyTimeoutSeconds`(5) | 各手: アンカー待ち → 対象の準備待ち → 実行 → 落ち着き待ち → 観測。待機だけも可。待機失敗・`status` が `running` 以外・`expect` 未達で打ち切り |
 | `agent.find` | `label`, `kind`（Button/Text/Toggle/Input/Selectable）, `scope` | ラベル部分一致で要素検索。1 行 1 件、末尾に推奨の `submit:"…"` |
 | `agent.goal` | – | 目標達成状態 |
 | `agent.end` | – | セッション終了（`session.json` / `actions.jsonl` を確定） |
@@ -48,6 +48,7 @@ Play 停止中も使う [Editor メールボックス](#editor-メールボッ�
 | `scenario.status` | – | 直前のシナリオの状態 |
 | `capture` | `name`（必須。英数字・`_`・`-`）, `directory`（既定 `DebugOutput/captures`）, `view`（`""` 既定 / `game` / `simulator`） | 画面を PNG に。`view` で Game View / Device Simulator を指定できる |
 | `snapshot` | `compact`(true), `save` | UI スナップショット（`all` 相当。ツール用） |
+| `scene.dump` | `depth`(3), `maxNodes`(200), `filter`（名前の部分一致、任意）, `save`(false) | シーン階層のコンパクトテキスト。`save` で全階層 JSON を `DebugOutput/scene/` に保存し `path` を返す |
 | `console` | `count`(40), `level`（`all` / `error`） | Unity コンソールの末尾。Error/Exception はスタックトレース先頭 3 行付き |
 
 ## Editor メールボックス
@@ -145,10 +146,61 @@ CLI の撮影は従来どおり PNG の生成完了を待たず、`width=height=
 | `pinch` + `center` `fromDistance` `toDistance` | | ピンチ |
 | `scrollTo` | `"MarketRuneListRow8"` | 祖先 ScrollRect の表示範囲へ入れる（フォーカスは動かさない） |
 | `reason` | | 行動理由（`actions.jsonl` に残る） |
+| `waitForText` / `waitForObject` / `waitForFocus` / `waitForScene` | `"waitForObject":"InventoryPanel"` | 行動前に待つ条件。複数指定はすべて成立するまで待つ |
+| `timeoutSeconds` | `30`（既定） | `waitFor*` の実時間上限。有限の正数を指定する |
 
 `click` / `tap` はターゲット名を受け、対象の **RectTransform 中心へ** ポインタ・タッチ入力を送る。
 `OnPointerClick` だけで反応する UI は `submit` ではなくこれを使う。
 例: `agent.act {"action":{"click":"InventoryPanel/ItemCard0"}}`、タッチなら `{"action":{"tap":"InventoryPanel/ItemCard0"}}`。
+
+### 行動前の待機
+
+メールボックスの `agent.act` は `UiScenarioStepReader.CreateAnchor` と
+`UiInputLocator.IsAnchorSatisfied` を共用する。`waitForObject` はアクティブな対象の存在・遮蔽なし・操作可能、
+`waitForText` は文字の可視性、`waitForFocus` はフォーカス、`waitForScene` はシーンのロードを待つ。
+`timeoutSeconds` はシナリオと同じ既定 30 秒で、timeScale に依存しない。
+アンカー成立後に、従来の対象の自動準備待ち（`readyTimeoutSeconds`、既定 5 秒）を行う。
+
+```sh
+python3 Tools/ai_client.py agent.act '{"action":{"submit":"StartButton","waitForObject":"GameScreen","timeoutSeconds":30}}'
+python3 Tools/ai_client.py agent.act '{"action":{"waitForObject":"GameScreen"}}'
+```
+
+待機だけの要求は成立時に `ok:true, ready:true, settled:true` を返す。入力後の落ち着き待ちは行わない。
+アンカーのタイムアウトは `ok:false, ready:false` と `message` に理由を返し、入力と後続ステップを送らない。
+`actions.jsonl` に待ち条件と `timeoutSeconds` を残し、実行した手は `agent.export` で同名フィールドへ写す。
+タイムアウトで拒否した要求は履歴へ残すが、再生するステップには加えない。
+
+同期 CLI はフレームを進められないため、アンカーを一回評価する。未成立なら入力を送らず
+`ok:false, message` でメールボックス利用を案内する。成立済みなら従来の即時実行へ進む。
+
+## シーン階層（`scene.dump`）
+
+```sh
+python3 Tools/ai_client.py scene.dump '{"depth":3,"maxNodes":200,"filter":"Panel","save":true}'
+unity command ai_scene_dump --depth 3 --maxNodes 200 --filter Panel --save true
+```
+
+`SceneHierarchyDumper` のロード済み全シーンを対象とし、非 UI・非アクティブなオブジェクトも含める。
+`text` は `scene=<シーン名>` に続けて、深さごとに半角空白 2 個を付けた階層を返す:
+
+```text
+scene=Home
+Canvas activeInHierarchy=true
+  InventoryPanel activeInHierarchy=false
+    Content activeInHierarchy=false
+```
+
+ルートの深さは 0。`depth` は 0 以上、`maxNodes` は 1 以上。
+`filter` は GameObject **名**の大文字・小文字を区別する部分一致で、パスでは判定しない。
+フィルタで親を省いても元の深さと祖先のアクティブ状態を維持する。
+件数は深さとフィルタに一致した表示ノードを全シーンで通算し、超過時は末尾に `... maxNodes=<上限>` を付ける。
+シーン見出しは件数に含めず、一致するノードがなければ `text` は空文字列。
+
+`save:true` は `DebugOutput/scene/hierarchy-<日時>.json` の絶対パスを `path` に返す。
+深さ・件数・フィルタはテキストにだけ適用し、JSON は既存の `SceneHierarchyDump` 形式の全階層を保存する。
+テキストの `activeInHierarchy` は既存 JSON の `activeSelf` と `parentIndex` から算出する。
+`save:false` の `path` は空。共通ディスパッチャ自体は PlayMode 外でも実行できる。
 
 ## 事後条件（`expect`）の語彙
 
@@ -158,6 +210,7 @@ CLI の撮影は従来どおり PNG の生成完了を待たず、`width=height=
 |---|---|
 | `textVisible` / `textAbsent` | `value` の文字が画面に見える／見えない |
 | `exists` / `absent` / `interactable` / `disabled` | `target` の要素が存在／不在／操作可能／無効 |
+| `objectExists` / `objectAbsent` | `target` のアクティブな GameObject が存在／不在。非 UI も対象。`FindTarget` と同じ名前・パス断片・`label:` 指定を一回評価する。待機はしない |
 | `focused` | `target` にフォーカスがある |
 | `sceneIs` | アクティブシーン名が `value` |
 | `gameState` | `game:` の `key` が `op`（eq/ne/contains/lt/le/gt/ge）で `value` を満たす |

@@ -68,7 +68,7 @@ namespace UniTestify
 
             if (hasAction)
             {
-                var action = JsonUtility.FromJson<AgentAction>(GetObject("action", true));
+                var action = ReadAction(GetObject("action", true));
                 action.expect = action.expect ?? Arguments.expect;
                 return new[] { action };
             }
@@ -82,10 +82,18 @@ namespace UniTestify
             var actions = new AgentAction[steps.Count];
             for (var actionIndex = 0; actionIndex < steps.Count; actionIndex++)
             {
-                actions[actionIndex] = JsonUtility.FromJson<AgentAction>(steps[actionIndex]);
+                actions[actionIndex] = ReadAction(steps[actionIndex]);
             }
 
             return actions;
+        }
+
+        private static AgentAction ReadAction(string json)
+        {
+            var action = new AgentAction();
+            JsonUtility.FromJsonOverwrite(json, action);
+            AiCommandArguments.ValidateDuration(action.timeoutSeconds, nameof(action.timeoutSeconds), true);
+            return action;
         }
     }
 }

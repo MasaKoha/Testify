@@ -44,6 +44,13 @@ Editor API 呼び出しはメールボックス側に限定する。フォーカ
 要求の公開通知を `FileSystemWatcher` で受け、定数 0.05 秒のポーリングで必要な走査だけを行う。
 監視とイベント購読はドメインリロード前・Editor 終了時に解放する。
 
+対話操作の `waitFor*` は `AgentActionWait` がシナリオの `CreateAnchor` / `IsAnchorSatisfied` を共用して待つ。
+メールボックスではアンカー待ち → 対象の準備待ち → 行動の順に実行し、タイムアウト時は行動を送らない。
+同期 CLI の未成立アンカーは拒否する。待機上限の既定値は `UiScenarioStep.DefaultTimeoutSeconds`（30 秒）に集約し、
+履歴・export に待ち条件と指定上限を保持する。
+`scene.dump` は `SceneHierarchyDumper` の収集結果を `SceneHierarchyDumpText` で制限・整形する。
+保存時は同じ収集結果の全階層 JSON を `DebugOutput/scene/` へ書き出す。
+
 ## フォルダ構成
 
 各行のファイル数は直下の `.cs` のみ（子フォルダ・`.meta`・`.asmdef` は含めない）。
@@ -60,7 +67,7 @@ Editor API 呼び出しはメールボックス側に限定する。フォーカ
 | フォルダ | C# 数 | 配置する責務 |
 |---|---:|---|
 | `Runtime/Agent/` | 7 | セッションの入口・寿命、設定、応答、要素検索、観測テキスト |
-| `Runtime/Agent/Actions/` | 3 | 行動 JSON、入力送出、行動の事後条件 |
+| `Runtime/Agent/Actions/` | 4 | 行動 JSON、アンカー待ち、入力送出、行動の事後条件 |
 | `Runtime/Agent/Goals/` | 3 | 目標 JSON、目標の妥当性検証・達成判定 |
 | `Runtime/Agent/Session/` | 4 | セッションの停止判定、履歴・成果物・終了レポート |
 | `Runtime/Gateway/` | 8 | 共通ディスパッチャ、要求・応答・引数、JSON 検証、直近ログ、実行状態 |
@@ -84,7 +91,7 @@ Editor API 呼び出しはメールボックス側に限定する。フォーカ
 | `Runtime/Recording/Output/` | 2 | 録画成果物・manifest・ffmpeg コマンド |
 | `Runtime/Recording/Session/` | 1 | 録画中の環境設定と復元 |
 | `Runtime/Forensics/` | 6 | 例外時の証拠収集、文脈・保留ログ、ファイルログ出力 |
-| `Runtime/Scene/` | 4 | シーン階層の収集、シーン・ノード・ダンプモデル |
+| `Runtime/Scene/` | 5 | シーン階層の収集・保存、コンパクトテキスト、シーン・ノード・ダンプモデル |
 | `Runtime/Ui/` | 9 | UI 入力対象の解決、可視判定・観測範囲・準備状態、スクロール、レイアウト監査 |
 | `Runtime/Adapters/` | 4 | ゲーム状態・busy・コマンドの接続契約と登録窓口 |
 | `Runtime/Core/` | 3 | 出力先、アセンブリ属性、SerializeField 結線情報 |
@@ -106,6 +113,7 @@ Editor API 呼び出しはメールボックス側に限定する。フォーカ
 | `Pipeline/Gateway/Execution/` | 1 | 撮影 CLI |
 | `Pipeline/Gateway/Mailbox/` | 1 | メールボックス CLI |
 | `Pipeline/Scenario/` | 3 | シナリオ実行・状態取得 CLI と状態応答 |
+| `Pipeline/Scene/` | 1 | シーン階層ダンプ CLI |
 | `Pipeline/Snapshot/` | 1 | UI スナップショット CLI |
 | `Pipeline/Forensics/` | 2 | 最新フォレンジック CLI と応答 |
 | `Pipeline/Monkey/` | 1 | ランダム探索 CLI |
@@ -113,12 +121,15 @@ Editor API 呼び出しはメールボックス側に限定する。フォーカ
 | `Tests/EditMode/Runtime/Input/` | 0 | 実装のアセンブリ・機能階層に対応する親フォルダ（直下の C# なし） |
 | `Tests/EditMode/Runtime/Input/Overlay/` | 0 | 実装のアセンブリ・機能階層に対応する親フォルダ（直下の C# なし） |
 | `Tests/EditMode/Runtime/Agent/` | 2 | `Runtime/Agent/` に対応する EditMode テスト |
-| `Tests/EditMode/Runtime/Agent/Actions/` | 2 | `Runtime/Agent/Actions/` に対応する EditMode テスト |
+| `Tests/EditMode/Runtime/Agent/Actions/` | 3 | `Runtime/Agent/Actions/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Agent/Goals/` | 1 | `Runtime/Agent/Goals/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Agent/Session/` | 2 | `Runtime/Agent/Session/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Gateway/` | 3 | `Runtime/Gateway/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Gateway/Execution/` | 3 | `Runtime/Gateway/Execution/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Gateway/Mailbox/` | 2 | `Runtime/Gateway/Mailbox/` に対応する EditMode テスト |
+| `Tests/EditMode/Runtime/Scenario/` | 0 | シナリオ実装に対応するテストの親フォルダ |
+| `Tests/EditMode/Runtime/Scenario/Expectations/` | 1 | 非 UI オブジェクトの存在・不在の一回評価 |
+| `Tests/EditMode/Runtime/Scene/` | 1 | 階層テキストの深さ・件数制限とアクティブ状態 |
 | `Tests/EditMode/Runtime/Snapshot/` | 3 | `Runtime/Snapshot/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Recording/` | 0 | 録画実装に対応するテストの親フォルダ |
 | `Tests/EditMode/Runtime/Recording/Capture/` | 1 | `Runtime/Recording/Capture/` に対応する EditMode テスト |
@@ -137,7 +148,7 @@ Editor API 呼び出しはメールボックス側に限定する。フォーカ
 既存スクリプトの `.meta` はスクリプトと対で移し、追加フォルダにも `.meta` を置く。
 
 テストは `Tests/EditMode/<実装アセンブリのルート>/<同じ機能パス>/` へ対応させる。
-現存する 26 ファイルのうち 25 ファイルは Runtime、1 ファイルは Editor 対象。
+現存する 29 ファイルのうち 28 ファイルは Runtime、1 ファイルは Editor 対象。
 Editor 操作の要求・応答テストは仕様指定の `Editor/Gateway/Mailbox/` に配置する。
 Tests asmdef は `UniTestify` と `UniTestify.Editor` を参照する。
 Pipeline のテストを追加する場合も同じ対応規則に従い、テストのない機能に空フォルダは作らない。

@@ -29,6 +29,7 @@
 |---|---|
 | `waitScene` | 操作した**結果**として到着するシーン名を待つ |
 | `waitForText` / `waitForObject` / `waitForFocus` / `waitForScene` | 操作前のアンカー。条件が**成立するまで待つ**。対象の通常の準備待ちはランナーが自動で行うため省略できる |
+| `timeoutSeconds` | 準備待ち・操作後のシーン待ちの実時間上限。既定 30 秒。旧 JSON の省略・0 以下も既定値を使う |
 | `settleFrames` | 操作後に待つフレーム数。撮影・監査のあるステップだけ既定 30、それ以外は 0。**フレーム数であり秒ではない**（60fps 固定で回すと 180 = 3 秒） |
 | `expect` | 事後条件の配列。未達は `failedSteps` に数え、`stopOnFail` なら打ち切る |
 | `comment` | 人向けメモ。AI セッションから書き出したときは「元の実行では未達」が入る |
@@ -69,7 +70,7 @@
 2. 前面の Graphic に遮られていない（モーダルの暗幕・別パネル越しには押さない）
 3. `Selectable.IsInteractable()` が true
 
-上限 30 秒。超えたら警告を出して見送る（`verdict=fail`）。結果の `waited` が「押せるまで待った実時間」＝応答時間の計測値になる。
+上限は `timeoutSeconds`（既定 30 秒）。超えたら警告を出して見送る（`verdict=fail`）。結果の `waited` が「押せるまで待った実時間」＝応答時間の計測値になる。
 
 `click` / `tap` はターゲット名を受け、**RectTransform の中心**へ入力を送る。
 `OnPointerClick` だけで反応するカード・独自 UI は `submit` ではなく `click` / `tap` を使う。
@@ -85,7 +86,7 @@
 ```
 
 操作対象とは別の到達条件が必要な場合は、`waitForObject` 等のアンカーを一度指定する。
-アンカーはその場の存在確認だけを返すものではなく、**成立までランナー内で待ち続ける**（準備待ちの上限 30 秒）。
+アンカーはその場の存在確認だけを返すものではなく、**成立までランナー内で待ち続ける**（準備待ちの既定上限 30 秒）。
 `waitForObject` は存在・遮蔽・操作可否、`waitForText` は文字の可視性、`waitForFocus` はフォーカス、
 `waitForScene` はシーンのロードを待つ。複数を指定した場合はすべての成立を待つ。
 単独の待機ステップにも使えるため、存在確認の外部ループや固定時間の sleep を足さない。
@@ -99,11 +100,26 @@
 }
 ```
 
+「画面が出るまで待つ」は `waitForObject`、「出ていることを断定する」は `objectExists` を使う。
+`objectExists` / `objectAbsent` はアクティブな GameObject だけを `FindTarget` と同じ対象指定で一回評価する。
+UI スナップショットに含まれない画面ルートや非 UI オブジェクトにも使える。
+遷移前の `objectExists` はその場で未達となり、遷移完了を待たない。
+
+```json
+{
+  "steps": [
+    { "waitForObject": "InventoryPanel", "timeoutSeconds": 30 },
+    { "expect": [{ "kind": "objectExists", "target": "InventoryPanel" }] }
+  ]
+}
+```
+
 ## AI セッションから回帰シナリオを作る
 
 Codex / Claude が `agent.act` で辿った手順は、`agent.export {"name":"tour"}` でそのまま `scenario.json` になる。
 
 - `agent.act` に付けた `expect` はステップの `expect` に写る（**探索しながら事後条件を残す**）
+- `waitFor*` と `timeoutSeconds` も同名フィールドに写る。行動を伴わない待機も一ステップとして保存する
 - 未達だった手は `comment: "元の実行では未達"` 付きで残る（再現用）
 - 書き出し先は `DebugOutput/agent/<session>/scenario.json`。回帰に採用するなら利用側の `docs/debug-scenarios/` へコピーして PR
 

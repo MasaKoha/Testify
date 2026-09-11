@@ -21,12 +21,13 @@ CLI と Unity 内蔵メールボックスの実行先を `AiCommandDispatcher` �
 | `agent.begin` | `goal` 必須、`options` 任意 | freePlay:true は期待値 0 件を許可。それ以外は拒否 |
 | `agent.observe` | `diffOnly=false`、`scope="visible"`、`capture`・`directory` 任意、`view=""`（`game` / `simulator`） | 現在の観測。撮影指定時は画像情報も返す。view の同期経路はフォーカス適用のみ |
 | `agent.find` | `label`、`kind` 任意、`scope="visible"` | 観測を検索し、一件一行で推奨 target spec を返す |
-| `agent.act` | `action` または空でない `steps` 配列、`expect` 任意 | 各手を順に実行し、expect 未達・status が running 以外なら打ち切る |
+| `agent.act` | `action` または空でない `steps` 配列、各手の `waitFor*` と `timeoutSeconds=30`、`expect` 任意 | 各手を順に実行し、待機失敗・expect 未達・status が running 以外なら打ち切る |
 | `agent.goal` | なし | 既存の目標判定 |
 | `agent.end` | なし | 既存のセッション終了 |
 | `agent.export` | `name` | 成功または自由行動セッションのシナリオ保存 |
 | `capture` | 英数字・`_`・`-` だけの `name` 必須、`directory` 任意、`view=""`（`game` / `simulator`） | PNG の絶対パス。既定は `DebugOutput/captures`。view の同期経路はフォーカス適用のみ |
 | `snapshot` | `compact=true`、CLI 互換の `save=false` | 圧縮テキストまたはスナップショット JSON を text に格納 |
+| `scene.dump` | `depth=3`、`maxNodes=200`、名前部分一致の `filter` 任意、`save=false` | 階層コンパクトテキストと、任意の全階層 JSON の絶対パス |
 | `console` | `count=40`、`level="all"` | 直近 500 行のリングから対象レベルの末尾 N 行 |
 
 `AiCommandResponse` は `ok/op/session/message/text/path/width/height/view/blank/settled/ready/expectOk/expectFailures/waitedMs/elapsedMs/error` を持つ。
@@ -169,13 +170,13 @@ Play 外の agent CLI も従来の生文字列から、同じ文言を含む応�
 
 メールボックスの `agent.act` は `submit` / `click` / `tap` の対象について、
 `UiReadiness.IsSubmittable` で存在・遮蔽なし・操作可能を確認してから既存の `Act` を呼ぶ。
-ランナーも同じヘルパを使い、シナリオのアンカー条件は引き続きランナー側で判定する。
+ランナーも同じヘルパを使う。T3 で対話操作にもシナリオと同じアンカー判定を追加した（末尾参照）。
 `readyTimeoutSeconds` は実時間で既定 5 秒。0 は即時判定、負値・NaN・無限大は拒否する。
 上限到達時も `Act` を呼び、submit の対象なし・遮蔽・操作不可などの既存メッセージを保持する。
 click / tap の対象解決失敗時は従来の座標フォールバックも保持する。
 準備待ちがタイムアウトした手では落ち着き待ちと観測更新を省き、追加フィールド以外は Act の応答をそのまま返す。steps もそこで打ち切る。
 `steps` は各手について準備待ち → 実行 → 落ち着き待ちの順に処理する。
-同期 CLI は準備待ちをせず即時実行する。
+同期 CLI は対象の自動準備待ちをせず即時実行する。T3 の明示アンカーは未成立なら入力を拒否する。
 
 ## 観測の可視フィルタ（offscreen / clipped / scope）
 
@@ -416,3 +417,49 @@ python3 Assets/UniLab.AI/Tools/ai_client.py scenario.run '{"path":"<export 応�
 クライアント側の `--timeout` はサーバーの `scenarioTimeoutSeconds` より長く設定する。
 追加テストは `AgentExportTest`、`AiScenarioExecutionTest`、`InputOverlayInputStateTest`、
 `AiCommandDispatcherTest` のシナリオ操作契約。Unity のコンパイル・再生・録画確認は別途行う。
+
+## T3: 対話操作の準備待ち・オブジェクト断定・階層ダンプ（2026-09-11）
+
+`AgentAction` は `waitForText` / `waitForObject` / `waitForFocus` / `waitForScene` と
+`timeoutSeconds` を持つ。既定値は `UiScenarioStep.DefaultTimeoutSeconds` の 30 秒で共用する。
+JSON の省略値を確実に保持するため、ゲートウェイとセッションコマンドは新しい `AgentAction` に
+`JsonUtility.FromJsonOverwrite` で値を適用する。action の上限は有限の正数のみ受け付ける。
+
+`AgentActionWait` は `UiScenarioStepReader.CreateAnchor` でアンカーを一度生成し、
+`UiInputLocator.IsAnchorSatisfied` が成立するまで非同期ディスパッチャ内で待つ。
+複数条件は AND。既存の可視テキスト・対象解決・遮蔽・操作可否・フォーカス・シーンロードの判定を共用し、
+同等の判定を別実装しない。時刻はシナリオと同じ `Time.realtimeSinceStartupAsDouble` を使う。
+成立後に既存の `readyTimeoutSeconds` による対象の準備待ち、入力、落ち着き待ちへ進む。
+
+アンカーのタイムアウトでは行動を呼ばず、`ok:false, ready:false, settled:false` と `message` を返す。
+`waitedMs` は明示アンカー待ちと対象の自動準備待ちの合計。
+行動のない `waitFor*` だけの要求は、成立時に一手として記録し、
+`ok:true, ready:true, settled:true, message:"待機条件が成立しました。"` を返す。
+この要求は入力後の落ち着き待ちを追加せず、その時点の `expect` を一回評価する。
+同期 CLI はフレームを進めない既存構造を維持し、明示アンカーが未成立なら入力を送らず、
+`ok:false, message` で非同期メールボックスの利用を案内する。
+
+`actions.jsonl` に同名の `waitFor*` 4 フィールドと `timeoutSeconds` を追加する。
+待機だけの `actionKind` は `wait`。タイムアウトは `status:"rejected"` で条件を記録するが、
+実行したステップには加えない。実行した手の export は `UiScenarioStep` の同名フィールドへ写す。
+実物の `UiScenarioStep` に上限フィールドがなかったため `timeoutSeconds` を追加し、
+ランナーの準備待ち・操作後のシーン待ちにも使う。旧 JSON の省略・0 以下は従来の 30 秒。
+ステップ全体の保護上限は `max(30, timeoutSeconds) × 2` 秒とし、短い待機指定で従来の実行猶予を縮めない。
+
+`objectExists` / `objectAbsent` は `target` を `UiInputLocator.FindTarget` で一回解決し、
+アクティブな GameObject の存在／不在を断定する。非 UI オブジェクトも対象で、待機はしない。
+シナリオは `ScenarioExpectationEvaluator`、対話操作・目標は実物で別の `AgentExpectationEvaluator` を使うため、
+両方の switch に同じ二語を追加する。`exists` / `absent` の UI スナップショットに対する意味は維持する。
+
+`scene.dump` は `SceneHierarchyDumper.Dump()` の結果を `SceneHierarchyDumpText.Format` で整形する。
+`depth` はルートを 0 とする最大深度（既定 3）、`maxNodes` は表示ノードの全シーン通算上限（既定 200）。
+`filter` は GameObject 名の大文字・小文字を区別する部分一致。表示対象だけを件数に数える。
+`text` は `scene=<名前>` と、深さごとに半角空白 2 個でインデントした
+`<名前> activeInHierarchy=true|false` の行から成る。名前の改行は `\r` / `\n` として表示する。
+超過時は末尾に `... maxNodes=<上限>`。一致するノードがなければ空文字列を返す。
+
+実物のノードは `activeSelf` と `parentIndex` を持つため、親が先に並ぶ既存の連続 index を利用して
+祖先の状態を伝播し、`activeInHierarchy` を算出する。保存 JSON のスキーマは変えない。
+`save:true` は全階層を `DebugOutput/scene/hierarchy-<yyyyMMdd-HHmmss-fff>.json` に保存して絶対パスを返す。
+深さ・件数・フィルタによる制限はテキストのみ。`save:false` の `path` は空。
+CLI は `Pipeline/Scene/AiSceneDumpCliCommand.cs` の `ai_scene_dump` から共通ディスパッチャを呼ぶ。

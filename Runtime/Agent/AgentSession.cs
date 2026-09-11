@@ -180,6 +180,14 @@ namespace UniTestify
             _artifacts.RecordActExpectation(previousStepCount, expectOk);
         }
 
+        /// <summary>待機が成立せず送出しなかった要求も、条件と拒否理由を履歴へ残します。</summary>
+        internal string RejectAction(AgentAction action, string message)
+        {
+            var observationKey = UiSnapshot.ToCompactText(UiSnapshot.Capture());
+            return RejectAction(action, observationKey, AgentActionExecutor.GetActionKind(action),
+                AgentActionExecutor.GetActionTarget(action), message);
+        }
+
         /// <summary>成功した手順を 02 のシナリオ JSON として書き出し、探索結果を再実行可能なテストへ昇格します。</summary>
         public string ExportAsScenario(string name)
         {

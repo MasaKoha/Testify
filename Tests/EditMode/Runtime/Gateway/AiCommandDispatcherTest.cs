@@ -74,6 +74,7 @@ namespace UniTestify.Tests
             Assert.That(response.text, Does.Contain("agent.begin"));
             Assert.That(response.text, Does.Contain("agent.act"));
             Assert.That(response.text, Does.Contain("capture"));
+            Assert.That(response.text, Does.Contain("scene.dump"));
             Assert.That(response.text, Does.Contain("scenario.run"));
             Assert.That(response.text, Does.Contain("scenario.status"));
         }
@@ -156,6 +157,53 @@ namespace UniTestify.Tests
         {
             var context = new AiCommandContext(new AiCommandRequest { op = "scenario.run", args = "{\"path\":\"scenario.json\",\"settleTimeoutSeconds\":1}" });
             Assert.That(context.Arguments.scenarioTimeoutSeconds, Is.EqualTo(AiCommandArguments.DefaultScenarioTimeoutSeconds));
+        }
+
+        /// <summary>シーン観測の省略値を経路間で共用します。</summary>
+        [Test]
+        public void SceneDumpArgumentsUseSharedDefaults()
+        {
+            var context = new AiCommandContext(new AiCommandRequest { op = "scene.dump" });
+            Assert.That(context.Arguments.depth, Is.EqualTo(SceneHierarchyDumpText.DefaultDepth));
+            Assert.That(context.Arguments.maxNodes, Is.EqualTo(SceneHierarchyDumpText.DefaultMaxNodes));
+            Assert.That(context.Arguments.filter, Is.Null.Or.Empty);
+            Assert.That(context.Arguments.save, Is.False);
+        }
+
+        /// <summary>不正な表示上限を共通の失敗応答へ変換します。</summary>
+        [TestCase("{\"depth\":-1}", "depth")]
+        [TestCase("{\"maxNodes\":0}", "maxNodes")]
+        public void SceneDumpRejectsInvalidLimits(string arguments, string parameterName)
+        {
+            var response = AiCommandDispatcher.Execute(new AiCommandRequest { op = "scene.dump", args = arguments });
+            Assert.That(response.ok, Is.False);
+            Assert.That(response.error, Does.Contain(parameterName));
+        }
+
+        /// <summary>PlayMode 外でも共通ディスパッチャから非 UI 階層を観測できます。</summary>
+        [Test]
+        public void SceneDumpReturnsHierarchyWithoutPlayMode()
+        {
+            const string RootName = "__UniTestifySceneDumpRoot__";
+            var root = new UnityEngine.GameObject(RootName);
+            try
+            {
+                var child = new UnityEngine.GameObject("Child");
+                child.transform.SetParent(root.transform);
+                root.SetActive(false);
+                var response = AiCommandDispatcher.Execute(new AiCommandRequest
+                {
+                    op = "scene.dump", args = "{\"depth\":0,\"maxNodes\":1,\"filter\":\"" + RootName + "\"}",
+                });
+                Assert.That(response.ok, Is.True);
+                Assert.That(response.text, Does.Contain(RootName + " activeInHierarchy=false"));
+                Assert.That(response.text, Does.Not.Contain("Child"));
+                Assert.That(response.path, Is.Empty);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
         }
 
         [System.Serializable]

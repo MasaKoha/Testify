@@ -467,3 +467,130 @@ Runtime 用の `.enabled` と `TESTIFY_MAILBOX` は使わない。
 
 1. Editor メールボックスの応答保持期限を決めるべき。理由は常駐期間中に `res-*.json` が蓄積するため。
 2. `editor_ctl.py` のパス探索・タイムアウト・異常応答を Python のテストで固定すべき。理由は Editor を使わずに通信側の回帰を検出できるため。
+
+
+## 2026-09-11 — T3 対話操作の準備待ち・オブジェクト断定・階層ダンプ
+
+### 実装内容
+
+T3 のみを追加した。ブランチ切り替え・コミットなどの Git 操作は行っていない。
+T1・T2・T7 の機能は再実装していない。
+
+- `AgentAction` に `waitForText` / `waitForObject` / `waitForFocus` / `waitForScene` と
+  `timeoutSeconds`（既定 30 秒）を追加。`AgentActionWait` はシナリオの `CreateAnchor` と
+  `UiInputLocator.IsAnchorSatisfied` を共用し、既存の対象の準備待ち・行動より前に待つ。
+- 待機だけの要求は成立時に `ok:true, ready:true, settled:true` を返す。タイムアウトは
+  `ok:false, message` と待ち時間を返し、入力と後続手を送らない。
+  既存の対象の自動準備待ち（`readyTimeoutSeconds`、5 秒）とは上限を分ける。
+- `actions.jsonl` に待ち条件と上限を追加し、タイムアウトで拒否した要求も記録する。
+  実行した手は待機だけの場合も含めて export の同名フィールドへ写し、拒否した要求は再生ステップへ加えない。
+- `objectExists` / `objectAbsent` は `target` を `FindTarget` で一回評価する。
+  アクティブな GameObject だけが対象で、非 UI も含む。待機しない。
+- `scene.dump` を `AiCommandDispatcher` の switch と `ListOps` の両方へ追加。
+  引数は `depth`（3）/ `maxNodes`（200）/ `filter` / `save`（false）。
+  応答は既存の `text` / `path` を使い、新しい応答フィールドは増やさない。
+  `ai_scene_dump` は同じディスパッチャへ転送する。
+- 階層テキストはルート深さ 0、インデント幅 2、`activeInHierarchy=true|false` の接尾。
+  名前フィルタは大文字・小文字を区別し、表示対象だけを全シーンで通算して件数を制限する。
+  JSON 保存先は `DebugOutput/scene/`。制限前の全階層を既存のスキーマで保存する。
+
+### 表の記述と実物の相違・解決
+
+| 項目 | 実物 | 対応 |
+|---|---|---|
+| タイムアウトと export | ランナーは private 定数の 30 秒固定で、`UiScenarioStep.timeoutSeconds` は存在しない | ステップへ同名フィールドを追加し、既定定数を `UiScenarioStep.DefaultTimeoutSeconds` に共通化。再生時の準備待ち・操作後のシーン待ちも指定値を使う。旧 JSON の省略・0 以下は既定値。ステップ全体の保護上限は `max(30, timeoutSeconds) × 2` 秒とし、短い指定でも既存の実行猶予を維持 |
+| 対話操作の expect | `ScenarioExpectationEvaluator` とは別に `AgentExpectationEvaluator` が評価している | 両方の switch に指定された二語だけを追加し、対話操作・目標・シナリオで `FindTarget` の同じ存在判定を使用 |
+| `activeInHierarchy` | 既存の階層ノードには `activeSelf` と `parentIndex` のみ存在 | 親が先に並ぶ既存の連続 index から祖先状態を伝播してテキストへ表示。保存 JSON のスキーマは維持 |
+| CLI の待機 | 既存の `ai_agent_act` は同期 `Execute` を呼び、フレームをまたげない | 非同期メールボックスで成立まで待つ。同期入口は明示アンカーを一回評価し、未成立なら入力を拒否して `ok:false, message` でメールボックス利用を案内。成立済みなら即時実行 |
+
+### 追加・変更ファイル一覧
+
+新規 C# 6 ファイルに同名 `.cs.meta` を追加。新規フォルダ 4 件にも `.meta` を追加した。
+既存 `.meta` と asmdef は変更していない。
+
+| ファイル | 種別 |
+|---|---|
+| `Pipeline/Gateway/AiCliArguments.cs` | 変更 |
+| `Pipeline/Scene.meta` | 追加 |
+| `Pipeline/Scene/AiSceneDumpCliCommand.cs` | 追加 |
+| `Pipeline/Scene/AiSceneDumpCliCommand.cs.meta` | 追加 |
+| `Runtime/Agent/Actions/AgentAction.cs` | 変更 |
+| `Runtime/Agent/Actions/AgentActionExecutor.cs` | 変更 |
+| `Runtime/Agent/Actions/AgentActionWait.cs` | 追加 |
+| `Runtime/Agent/Actions/AgentActionWait.cs.meta` | 追加 |
+| `Runtime/Agent/AgentSession.cs` | 変更 |
+| `Runtime/Agent/AgentSessionCommands.cs` | 変更 |
+| `Runtime/Agent/Goals/AgentExpectationEvaluator.cs` | 変更 |
+| `Runtime/Agent/Session/AgentActionLogEntry.cs` | 変更 |
+| `Runtime/Agent/Session/AgentSessionArtifacts.cs` | 変更 |
+| `Runtime/Gateway/AiCommandArguments.cs` | 変更 |
+| `Runtime/Gateway/AiCommandContext.cs` | 変更 |
+| `Runtime/Gateway/AiCommandDispatcher.cs` | 変更 |
+| `Runtime/Gateway/AiCommandResponse.cs` | 変更 |
+| `Runtime/Scenario/Expectations/ScenarioExpectationEvaluator.cs` | 変更 |
+| `Runtime/Scenario/UiScenarioRunner.cs` | 変更 |
+| `Runtime/Scenario/UiScenarioStep.cs` | 変更 |
+| `Runtime/Scenario/UiScenarioStepReader.cs` | 変更 |
+| `Runtime/Scene/SceneHierarchyDumpText.cs` | 追加 |
+| `Runtime/Scene/SceneHierarchyDumpText.cs.meta` | 追加 |
+| `Runtime/Scene/SceneHierarchyDumper.cs` | 変更 |
+| `Tests/EditMode/Runtime/Agent/Actions/AgentActionWaitTest.cs` | 追加 |
+| `Tests/EditMode/Runtime/Agent/Actions/AgentActionWaitTest.cs.meta` | 追加 |
+| `Tests/EditMode/Runtime/Agent/Session/AgentExportTest.cs` | 変更 |
+| `Tests/EditMode/Runtime/Gateway/AiCommandDispatcherTest.cs` | 変更 |
+| `Tests/EditMode/Runtime/Scenario.meta` | 追加 |
+| `Tests/EditMode/Runtime/Scenario/Expectations.meta` | 追加 |
+| `Tests/EditMode/Runtime/Scenario/Expectations/ScenarioExpectationObjectTest.cs` | 追加 |
+| `Tests/EditMode/Runtime/Scenario/Expectations/ScenarioExpectationObjectTest.cs.meta` | 追加 |
+| `Tests/EditMode/Runtime/Scene.meta` | 追加 |
+| `Tests/EditMode/Runtime/Scene/SceneHierarchyDumpTextTest.cs` | 追加 |
+| `Tests/EditMode/Runtime/Scene/SceneHierarchyDumpTextTest.cs.meta` | 追加 |
+| `docs/architecture.md` | 変更 |
+| `docs/design/design-unilab-ai-12-ai-gateway.md` | 変更 |
+| `docs/implementation.md` | 変更 |
+| `docs/ops-reference.md` | 変更 |
+| `docs/scenario-guide.md` | 変更 |
+
+### 追加したテスト（未実行）
+
+24 メソッド、TestCase 展開で 43 ケースを追加した。
+既存の op 一覧テストにも `scene.dump` の期待値を追加した。
+
+| ファイル | 追加したテスト名 |
+|---|---|
+| `Tests/EditMode/Runtime/Agent/Actions/AgentActionWaitTest.cs` | `CreatesSameAnchorAsScenarioForEachWaitCondition`、`ActionKeepsAllWaitConditionsBeforeSubmit`、`TimeoutDefaultsToScenarioLimit`、`ExplicitTimeoutIsPreserved`、`NonPositiveTimeoutIsRejected`、`WaitCompletesWhenObjectBecomesActive`、`SynchronousActionRejectsUnsatisfiedAnchorBeforeInput` |
+| `Tests/EditMode/Runtime/Scenario/Expectations/ScenarioExpectationObjectTest.cs` | `ObjectExpectationUsesActiveHierarchy`、`ObjectExpectationResolvesTargetSpecification`、`MissingObjectIsEvaluatedOnce`、`ActivationChangesTheNextAssertion` |
+| `Tests/EditMode/Runtime/Scene/SceneHierarchyDumpTextTest.cs` | `DepthLimitKeepsLaterRoots`、`DefaultDepthStopsAfterThirdDescendant`、`ZeroDepthIncludesOnlyRoots`、`MaximumNodesAppliesAcrossScenes`、`DefaultMaximumNodesTruncatesAtTwoHundred`、`FilterPreservesInactiveAncestorAndCountsOnlyMatches`、`FilterMatchesNameInsteadOfPath`、`InvalidLimitsAreRejected` |
+| `Tests/EditMode/Runtime/Agent/Session/AgentExportTest.cs` | `ExportPreservesWaitConditionsAndTimeout`、`ActionLogPreservesWaitConditionsAndTimeout` |
+| `Tests/EditMode/Runtime/Gateway/AiCommandDispatcherTest.cs` | `SceneDumpArgumentsUseSharedDefaults`、`SceneDumpRejectsInvalidLimits`、`SceneDumpReturnsHierarchyWithoutPlayMode` |
+
+### 静的確認
+
+- 型定義・namespace・既存 using・アセンブリの公開範囲を照合した。
+  `SceneHierarchyDumpText` の既定定数は public とし、別アセンブリの Pipeline から参照できる。
+- 変更 C# の lifecycle / コンポーネント API を grep。該当は既存のセッション・シナリオのドライバ生成と
+  既存の階層収集のみ。新しい常駐処理・描画ホットパスへの追加はない。
+- 構成表は `Runtime/Agent/Actions/` 3→4、`Runtime/Scene/` 4→5、`Pipeline/Scene/` 0→1。
+  EditMode は 26→29 ファイル。全フォルダが直下 C# 上限 10 以内。
+- 構成表の件数、変更一覧、条件付きコンパイル、禁止依存、追加 `.meta` と GUID の重複を静的に照合し、指摘なし。
+- **Unity の起動・コンパイル・ビルド・テスト実行は一切行っていない。** 下記は依頼者による実機確認が必要。
+
+### 依頼者が Unity で確認する項目
+
+1. 数秒かかる遷移で `agent.act {"action":{"submit":"StartButton","waitForObject":"GameScreen"}}` を一度送る。
+   外側のポーリング無しで成立後に一度だけ入力されること。4 種の waitFor と複数条件の AND も確認する。
+2. 待機だけの要求が成立で成功し、不成立のまま上限へ達すると `ok:false, message` を返すこと。
+   タイムアウトした入力と後続 steps が送られないこと。30 秒の既定上限、明示上限、timeScale=0 を確認する。
+3. 遷移前の `objectExists` が即時未達、完了後が達成となること。
+   `objectAbsent`、自身または祖先が非アクティブな対象、非 UI 対象を、対話操作とシナリオの両方で確認する。
+4. 成功・タイムアウトの履歴に待ち条件が残り、成功した待機だけの手も export に含まれること。
+   export の `timeoutSeconds` を含む同名フィールドと、再生時の待機動作を確認する。
+5. `scene.dump` と `ai_scene_dump` で既定・指定の深さ／件数制限、名前フィルタ、非アクティブな祖先の接尾表示を確認する。
+   `save:true` の絶対 `path` に全階層 JSON が存在すること。新規・変更 EditMode テストと Pipeline のコンパイルを確認する。
+
+### 提案（このランでは実装しない）
+
+1. `scene.dump` の収集負荷を計測すべき。理由はテキストの件数を絞っても、既存 Dumper は全階層の
+   コンポーネントと結線情報を収集するため。必要なら JSON 全保存との互換を保って収集範囲を分ける。
+2. 同期 CLI で成立まで待つ必要が出たら、Pipeline 側の非同期コマンド契約を確認して共通の
+   `ExecuteAsync` へ接続すべき。理由は同期呼び出し内でメインスレッドを止めるとシーン遷移も進まないため。

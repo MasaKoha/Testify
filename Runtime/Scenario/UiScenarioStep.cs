@@ -9,6 +9,9 @@ namespace UniTestify
     [Serializable]
     public sealed class UiScenarioStep
     {
+        /// <summary>対話操作とシナリオで共通に使う待機上限の既定秒数です。</summary>
+        public const float DefaultTimeoutSeconds = 30f;
+
         /// <summary>
         /// submit を送る GameObject 名。親名/子名 のパス指定にも対応する。空なら操作しない。
         /// </summary>
@@ -184,6 +187,9 @@ namespace UniTestify
         /// シーン待機を明示し、ロードタイミングが画面ごとに揺れるケースを吸収するための条件です。
         /// </summary>
         public string waitForScene;
+
+        /// <summary>準備待ち・操作後のシーン待ちの実時間上限です。0 以下は既定値を使います。</summary>
+        public float timeoutSeconds = DefaultTimeoutSeconds;
 
         /// <summary>
         /// このシーン名がロード済みになるまで待つ。空なら待機しない。

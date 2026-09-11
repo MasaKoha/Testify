@@ -12,6 +12,7 @@ namespace UniTestify
     {
         private readonly List<ScenarioExpectationFailure> _failures = new List<ScenarioExpectationFailure>();
 
+        /// <summary>各事後条件を一回評価し、未達の理由を返します。</summary>
         internal IReadOnlyList<ScenarioExpectationFailure> EvaluateExpectations(UiScenarioStep step, UiSnapshotDocument snapshot, UiSnapshotDiff diff, int forensicsStartCount, ExceptionForensics forensics, VideoRecorder videoRecorder, PerformanceRecorder performanceRecorder)
         {
             _failures.Clear();
@@ -37,6 +38,8 @@ namespace UniTestify
                 case "textAbsent": ExpectText(expectation, snapshot, false); return;
                 case "exists": ExpectElement(expectation, snapshot, true, false); return;
                 case "absent": ExpectElement(expectation, snapshot, false, false); return;
+                case "objectExists": ExpectObject(expectation, true); return;
+                case "objectAbsent": ExpectObject(expectation, false); return;
                 case "interactable": ExpectElement(expectation, snapshot, true, true); return;
                 case "disabled": ExpectDisabled(expectation, snapshot); return;
                 case "focused": ExpectFocused(expectation, snapshot); return;
@@ -86,6 +89,16 @@ namespace UniTestify
             if (shouldBeInteractable && (!element.interactable || !string.IsNullOrEmpty(element.blockedBy)))
             {
                 AddFailure(expectation.kind, expectation.target, string.Empty, "要素が操作可能ではありません。", string.Empty);
+            }
+        }
+
+        private void ExpectObject(ScenarioExpectation expectation, bool shouldExist)
+        {
+            var exists = UiInputLocator.FindTarget(expectation.target) != null;
+            if (exists != shouldExist)
+            {
+                AddFailure(expectation.kind, expectation.target, string.Empty,
+                    shouldExist ? "アクティブな GameObject が見つかりません。" : "アクティブな GameObject が存在しています。", string.Empty);
             }
         }
 

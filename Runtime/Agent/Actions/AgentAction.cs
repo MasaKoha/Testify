@@ -9,6 +9,21 @@ namespace UniTestify
     [Serializable]
     public sealed class AgentAction
     {
+        /// <summary>行動前に表示完了を待つテキストです。</summary>
+        public string waitForText;
+
+        /// <summary>行動前に存在・遮蔽なし・操作可能の成立を待つ対象指定です。</summary>
+        public string waitForObject;
+
+        /// <summary>行動前にフォーカス到達を待つ対象指定です。</summary>
+        public string waitForFocus;
+
+        /// <summary>行動前にロード完了を待つシーン名です。</summary>
+        public string waitForScene;
+
+        /// <summary>待機アンカーの実時間上限です。シナリオと同じ既定値を使います。</summary>
+        public float timeoutSeconds = UiScenarioStep.DefaultTimeoutSeconds;
+
         /// <summary>UI の submit 経路を直接検証するための対象名です。</summary>
         public string submit;
 
