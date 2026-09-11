@@ -1,19 +1,30 @@
 # 録画と成果物
 
-## 成果物の置き場（`DebugOutput/`、プロジェクト直下）
+## 成果物の置き場（`DebugOutput/`）
+
+`DebugOutputPath.DirectoryPath` は Editor では `<Unity プロジェクト>/DebugOutput`、
+実機 Development Build では `<Application.persistentDataPath>/DebugOutput`。
+以下のパスはすべてこのディレクトリからの相対表記。明示的な出力先指定は既存の各機能の規則に従う。
 
 | パス | 中身 |
 |---|---|
 | `agent-mailbox/` | メールボックス。`.enabled`（自動起動マーカー）、`req-*.json`、`res-*.json`（1 時間で掃除） |
 | `agent/<session>/` | エージェントセッション。`session.json`（結果・手数）、`actions.jsonl`（1 手ごとの観測キー・行動・差分）、`scenario.json`（`agent.export`）、`abnormal-*.png`（stuck・例外時の自動撮影）、`forensics/` |
 | `captures/` | `capture` / `agent.observe {"capture":…}` の PNG |
-| `scenario-results/<name>-<日時>/` | `result.json`（`verdict` / `failedSteps` / ステップごとの `waited`）、撮影・監査 JSON |
+| `scenario-results/<name>-<日時>[-<識別子>]/` | シナリオ結果（`verdict` / `failedSteps` / ステップごとの `waited`）。既存のメニュー／`scenario.run` は `<name>.json`、自律実行は `result.json` |
+| `ui-scenario/` | シナリオの撮影・スナップショット・監査 JSON の既定出力先 |
+| `scenario-autorun.json` | 自律実行の外部設定。`path` / `name` / `delaySeconds` |
+| `scenario-autorun.done.json` | 自律実行の完了通知。結果 JSON の絶対 `path` と同じ `verdict` |
 | `snapshots/` | `snapshot {"save":true}` の JSON |
 | `recordings/<name>/` | 連番 JPG、`frames.txt`、`audio.wav`、`recording-manifest.json` |
 | `forensics/<日時>/` | 例外発生時のスクショ＋UI スナップショット＋ログ |
 | `run-archive/` | RunArchive（成果物の索引。スマホ閲覧用ギャラリー） |
 
 `DebugOutput/` は `.gitignore` に入れる。
+
+自律実行はメールボックスの `.enabled` を必要としない。
+設定アセット・Android への配置・`adb pull` の手順は [実機での使い方](getting-started.md#5-実機-development-build-で自律実行する) を参照。
+シナリオの結果 JSON の形式は Editor と実機で共通。
 
 ## 録画
 

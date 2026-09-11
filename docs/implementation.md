@@ -693,3 +693,116 @@ Runtime の新規 C#・新規フォルダはない。新規テスト 1 ファイ
 1. スナップショットと文字待機の可視判定を別タスクで揃えるべき。理由は、現状のスナップショットは
    Graphic の enabled を入口とし、文字待機は文字色と CanvasGroup の透明度まで確認するため。
    今回は T4 の範囲に合わせ、TMP と legacy の双方へ既存の各経路の規則を適用した。
+
+
+## 2026-09-11 — T5 実機 Development Build での自律再生
+
+### 実装内容
+
+T5 のみを実装した。指定済みの `feature/standalone-autorun` を切り替えず、Git 操作は行っていない。
+T1・T2・T3・T4・T7 の再実装、T9 などの先行実装はない。
+
+- `DebugOutputPath.Resolve` を純関数として追加し、`DirectoryPath` は `Application.isEditor` で分岐する。
+  Editor はプロジェクト直下、実機は `persistentDataPath` 配下の `DebugOutput` を使う。
+- `ResolveRelative` に撮影 `directory` と `scenario.run`／自律実行 `path` の解決を集約した。
+  Editor の既存のプロジェクト基準を維持し、実機は `persistentDataPath` 基準にする。
+  絶対指定も正規化して通す。環境を引数で与える internal オーバーロードで両分岐を検証できる。
+- `UniTestifySettings` と付属 `Resources/UniTestifySettings.asset` を追加した。
+  フィールドは `autorunScenarioPath`（空）と `autorunDelaySeconds`（2 秒）のみ。
+  `CreateAssetMenu` により設定アセットを作り直せる。
+- `ScenarioAutorun` は `AfterSceneLoad` で Resources の設定を読み、外部 JSON の指定項目、
+  Standalone / Editor の起動引数のパスの順に上書きする。元のアセットは変更しない。
+  JSON 省略項目はビルド設定を維持し、0 秒の明示指定を認識する。
+- メールボックスと `.enabled` から独立して実時間で待ち、既存ランナーを開始する。
+  結果は起動ごとの固有ディレクトリの `result.json` に保存する。
+  ランナー終了後に結果を一度読み、`scenario-autorun.done.json` の `path` / `verdict` に写す。
+  待機開始前に前回の完了通知を削除し、今回の通知は一時ファイルを閉じてから移動して公開する。
+  起動失敗・保存失敗時はログに理由を残す。
+- 新しい op／op 引数／op 応答フィールドはない。既存の `ScenarioResult` と観測 JSON のスキーマを維持した。
+  新規設定 JSON は `path` / `name` / `delaySeconds`、新規完了 JSON は `path` / `verdict`。
+  Standalone / Editor の追加起動引数は `-unitestify-scenario <path>`。
+
+### 表の記述と実物の相違・解決
+
+| 項目 | 実物 | 対応 |
+|---|---|---|
+| `AiCaptureSupport.Request` の `directory` | メソッドの仮引数名は `outputDirectory`。op 引数は `directory` | 引数名を維持し、Request 内の相対解決を共通関数へ置き換えた |
+| `scenario.run` の実装箇所 | Dispatcher から `AiScenarioExecution.Start` へ委譲している | 実際のパス解決箇所を変更し、CLI／メールボックスの両方へ適用した |
+| 受け入れ条件の `result.json` | 既存 `CreateResultFilePath` と `scenario.run` は `<name>.json` を使う | 既存経路の名前を維持し、自律実行だけランナーの既存引数で `result.json` を指定した。成果物の説明も現物に合わせた |
+| 完了の観測 | `ResultSaved` はあるが、空シナリオは `Run` 内で通知が完了し得る | ランナーの終了後に予定パスを読み、起動後のイベント購読で完了を取りこぼさない形にした |
+| 設計書抜粋の配置 | 拡張計画の全文はリポジトリ内にない | 提供された T5 表を仕様とし、成果物契約を既存の設計書12と ops リファレンスへ追記した |
+
+### 追加・変更ファイル一覧
+
+新規 C# 4 ファイルに `.cs.meta`、新規テストフォルダに `.meta`、設定アセットに `.asset.meta` を追加した。
+既存 `.meta` と asmdef は変更していない。
+
+| ファイル | 種別 |
+|---|---|
+| `Runtime/Core/DebugOutputPath.cs` | 変更 |
+| `Runtime/Core/UniTestifySettings.cs` | 追加 |
+| `Runtime/Core/UniTestifySettings.cs.meta` | 追加 |
+| `Runtime/Gateway/AiCommandArguments.cs` | 変更（path の説明） |
+| `Runtime/Gateway/Execution/AiCaptureSupport.cs` | 変更 |
+| `Runtime/Gateway/Execution/AiScenarioExecution.cs` | 変更 |
+| `Runtime/Resources/UniTestifySettings.asset` | 追加 |
+| `Runtime/Resources/UniTestifySettings.asset.meta` | 追加 |
+| `Runtime/Scenario/ScenarioAutorun.cs` | 追加 |
+| `Runtime/Scenario/ScenarioAutorun.cs.meta` | 追加 |
+| `Tests/EditMode/Runtime/Core.meta` | 追加 |
+| `Tests/EditMode/Runtime/Core/DebugOutputPathResolveTest.cs` | 追加 |
+| `Tests/EditMode/Runtime/Core/DebugOutputPathResolveTest.cs.meta` | 追加 |
+| `Tests/EditMode/Runtime/Scenario/ScenarioAutorunConfigTest.cs` | 追加 |
+| `Tests/EditMode/Runtime/Scenario/ScenarioAutorunConfigTest.cs.meta` | 追加 |
+| `docs/getting-started.md` | 変更 |
+| `docs/recording-and-artifacts.md` | 変更 |
+| `docs/architecture.md` | 変更 |
+| `docs/ops-reference.md` | 変更 |
+| `docs/design/design-unilab-ai-12-ai-gateway.md` | 変更 |
+| `docs/implementation.md` | 変更 |
+
+### 追加したテスト名（未実行）
+
+20 メソッド、TestCase 展開で 46 ケースを追加した。既存テストの期待値変更はない。
+
+| ファイル | テスト名 |
+|---|---|
+| `DebugOutputPathResolveTest.cs`（6 メソッド／13 ケース） | `ResolveSelectsEnvironmentRoot`、`ResolveDoesNotRequireUnusedRoot`、`RelativePathUsesEnvironmentRoot`、`AbsolutePathIsPreserved`、`RelativeParentSegmentsAreNormalized`、`EditorPropertiesUseProjectRoot` |
+| `ScenarioAutorunConfigTest.cs`（14 メソッド／33 ケース） | `MissingConfigurationUsesDisabledDefaults`、`MissingFieldsPreserveBuildSettings`、`JsonOverridesBuildSettings`、`PathOnlyJsonPreservesBuildDelay`、`ExplicitZeroOverridesBuildDelay`、`EmptyPathDisablesBuildAutorun`、`JsonDecodesEscapedPathAndName`、`CommandLineOverridesFilePath`、`CommandLineWorksWithoutConfigurationFile`、`CommandLineWithoutPathIsRejected`、`InvalidJsonIsRejected`、`InvalidFieldTypesAreRejected`、`InvalidBuildDelayIsRejected`、`NegativeJsonDelayIsRejected` |
+
+### 静的確認
+
+- 型と namespace は既存ソースとローカル Unity / .NET の API 定義で照合した。
+  `InternalsVisibleTo("UniTestify.Tests.EditMode")` により internal の設定解決・パス解決をテストから参照できる。
+- 新規／変更 C# の条件付きコンパイルと public / internal の summary を照合した。
+  新規 Runtime のゲーム用ライブラリ依存・可変 static・イベント購読はない。
+- lifecycle／コンポーネント API の grep では `ScenarioAutorun` の起動メソッド名と
+  一度だけの `AddComponent<ScenarioAutorun>` が該当する。観測基盤のドライバ生成として既存ランナーと同じ方式を使う。
+  Awake / Start / Update メソッドの新設や、メールボックス・描画ホットパスの変更はない。
+- 新規 `.meta` の GUID 重複がなく、設定 asset の m_Script が新規 `UniTestifySettings.cs.meta` を参照することを照合した。
+- 構成表は `Runtime/Scenario/` 8→9、`Runtime/Core/` 3→4、Resources は asset 1→2。
+  EditMode は 30→32（Runtime 対象 31 / Editor 対象 1）。
+- `JsonUtility.FromJsonOverwrite` の未指定値を維持する契約は
+  [Unity の API 定義](https://docs.unity3d.com/ScriptReference/JsonUtility.FromJsonOverwrite.html) でも確認した。
+- **Unity の起動・インポート・コンパイル・ビルド・テスト実行は行っていない。**
+
+### 未実行の確認事項・依頼者の受け入れ確認
+
+1. TestProject または利用側でコンパイルし、追加 EditMode 46 ケースと既存テストを実行する。
+   新規アセットと `.meta` が読み込まれ、Inspector の既定値が空パス・2 秒であることを確認する。
+2. Android Development Build へ設定 JSON とシナリオを `adb push` し、メールボックスを無効にした状態で起動する。
+   指定遅延後に一度だけ自律実行し、`persistentDataPath/DebugOutput` に成果物と完了通知が出ること。
+3. `adb pull` した `result.json` の `verdict` が同じシナリオの Editor 実行と一致すること。
+   仮想 `Touchscreen` の `tap` / `swipe` / `pinch` が実機 UI に届くこと（実機確認が必要）。
+4. 設定アセットだけ、外部ファイルによる部分上書き、空パスによる無効化、0 秒、timeScale=0、
+   Standalone／Editor の起動引数によるパス上書きを確認する。初回用の指定パスにシナリオを別途配置する。
+5. 空シナリオ・通常完了・expect 失敗・起動エラー・再起動を確認する。
+   完了通知が実際に生成された結果を指し、再起動で過去の結果と混同しないこと。
+   画面遷移でも自律実行が継続し、既存の相対撮影先と `scenario.run` が各環境の基準へ解決されること。
+6. Development Build 以外では Runtime の自律実行コードが含まれないことを確認する。
+
+### 提案（このランでは実装しない）
+
+1. シナリオ本体の `outputDirectory` の相対指定も、別タスクで環境別の解決へ揃えるべき。
+   理由は現状の `UiScenarioStepReader` が明示値をそのまま返し、実機移行時にカレントディレクトリ依存が残るため。
+   今回は表に指定された撮影 `directory` と `scenario.run` の `path` のみ共通化した。

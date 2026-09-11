@@ -51,6 +51,14 @@ Editor API 呼び出しはメールボックス側に限定する。フォーカ
 `scene.dump` は `SceneHierarchyDumper` の収集結果を `SceneHierarchyDumpText` で制限・整形する。
 保存時は同じ収集結果の全階層 JSON を `DebugOutput/scene/` へ書き出す。
 
+実機の自律実行は `ScenarioAutorun` → `UiScenarioRunner.Run` の独立した経路。
+`AfterSceneLoad` で `Resources/UniTestifySettings.asset` を読み、`scenario-autorun.json` の指定項目、
+Standalone / Editor の `-unitestify-scenario` のパスの順に上書きする。
+実時間の待機後に一度だけ実行し、結果の絶対 `path` と `verdict` を `scenario-autorun.done.json` に保存する。
+メールボックス・`.enabled` に依存せず、空の既定パスでは起動しない。
+`DebugOutputPath` は Editor でプロジェクトルート、実機で `persistentDataPath` の下に `DebugOutput` を置く。
+撮影 `directory` と `scenario.run`／自律実行の `path` の相対解決も同じ環境別ルートを使う。
+
 ## フォルダ構成
 
 各行のファイル数は直下の `.cs` のみ（子フォルダ・`.meta`・`.asmdef` は含めない）。
@@ -73,7 +81,7 @@ Editor API 呼び出しはメールボックス側に限定する。フォーカ
 | `Runtime/Gateway/` | 8 | 共通ディスパッチャ、要求・応答・引数、JSON 検証、直近ログ、実行状態 |
 | `Runtime/Gateway/Execution/` | 4 | 撮影の発行・完了待ち、撮影対象フォーカス・解像度安定待ち、シナリオ起動・結果待ち、入力後の静止待ち |
 | `Runtime/Gateway/Mailbox/` | 3 | ファイル要求・応答、ポーリングサーバー、Prefab の型付き参照 |
-| `Runtime/Scenario/` | 8 | シナリオの入口・ステップ解釈、入力実行、成果物保存、記録の開始停止 |
+| `Runtime/Scenario/` | 9 | シナリオの入口・ステップ解釈、入力実行、成果物保存、記録の開始停止、起動時の自律実行 |
 | `Runtime/Scenario/Expectations/` | 3 | シナリオ期待値、評価器、失敗理由 |
 | `Runtime/Scenario/Results/` | 3 | シナリオ全体・ステップの結果、証拠パス |
 | `Runtime/Snapshot/` | 6 | UI スナップショットの収集・保存・整形・比較と観測モデル |
@@ -94,7 +102,8 @@ Editor API 呼び出しはメールボックス側に限定する。フォーカ
 | `Runtime/Scene/` | 5 | シーン階層の収集・保存、コンパクトテキスト、シーン・ノード・ダンプモデル |
 | `Runtime/Ui/` | 9 | UI 入力対象の解決、TMP / legacy Text の可視判定・ラベル抽出、観測範囲・準備状態、スクロール、レイアウト監査 |
 | `Runtime/Adapters/` | 4 | ゲーム状態・busy・コマンドの接続契約と登録窓口 |
-| `Runtime/Core/` | 3 | 出力先、アセンブリ属性、SerializeField 結線情報 |
+| `Runtime/Core/` | 4 | 環境別の出力先、UniTestifySettings、アセンブリ属性、SerializeField 結線情報 |
+| `Runtime/Resources/` | 0 | `AiMailboxPrefab.asset` の型付き参照とビルド設定の `UniTestifySettings.asset` |
 | `Runtime/RunArchive/` | 3 | ラン概要と性能・視覚回帰の要約モデル |
 | `Editor/Gateway/` | 3 | Game View / Device Simulator のフォーカス処理、Editor 操作の要求・応答 |
 | `Editor/Gateway/Mailbox/` | 2 | Runtime メールボックス起動メニュー、Editor 操作メールボックス |
@@ -124,10 +133,11 @@ Editor API 呼び出しはメールボックス側に限定する。フォーカ
 | `Tests/EditMode/Runtime/Agent/Actions/` | 3 | `Runtime/Agent/Actions/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Agent/Goals/` | 1 | `Runtime/Agent/Goals/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Agent/Session/` | 2 | `Runtime/Agent/Session/` に対応する EditMode テスト |
+| `Tests/EditMode/Runtime/Core/` | 1 | Editor / 実機の出力先と相対・絶対パス解決 |
 | `Tests/EditMode/Runtime/Gateway/` | 3 | `Runtime/Gateway/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Gateway/Execution/` | 3 | `Runtime/Gateway/Execution/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Gateway/Mailbox/` | 2 | `Runtime/Gateway/Mailbox/` に対応する EditMode テスト |
-| `Tests/EditMode/Runtime/Scenario/` | 0 | シナリオ実装に対応するテストの親フォルダ |
+| `Tests/EditMode/Runtime/Scenario/` | 1 | 自律実行の設定 JSON・既定値・上書き順の純ロジックテスト |
 | `Tests/EditMode/Runtime/Scenario/Expectations/` | 1 | 非 UI オブジェクトの存在・不在の一回評価 |
 | `Tests/EditMode/Runtime/Scene/` | 1 | 階層テキストの深さ・件数制限とアクティブ状態 |
 | `Tests/EditMode/Runtime/Snapshot/` | 4 | `Runtime/Snapshot/` に対応する EditMode テスト。legacy Text の収集・文字判定を含む |
@@ -144,11 +154,11 @@ Editor API 呼び出しはメールボックス側に限定する。フォーカ
 |---|---:|---|
 | `Tools/` | 3 | `ai_client.py`（Runtime 操作）、`editor_ctl.py`（Editor 操作）、`test_ai_client.py` |
 
-`Runtime/Prefabs/`（メールボックスの Prefab）と `Runtime/Resources/`（型付き参照アセット）は既存位置を維持する。
+`Runtime/Prefabs/`（メールボックスの Prefab）と `Runtime/Resources/`（型付き参照・ビルド設定アセット）は既存位置を維持する。
 既存スクリプトの `.meta` はスクリプトと対で移し、追加フォルダにも `.meta` を置く。
 
 テストは `Tests/EditMode/<実装アセンブリのルート>/<同じ機能パス>/` へ対応させる。
-現存する 30 ファイルのうち 29 ファイルは Runtime、1 ファイルは Editor 対象。
+現存する 32 ファイルのうち 31 ファイルは Runtime、1 ファイルは Editor 対象。
 Editor 操作の要求・応答テストは仕様指定の `Editor/Gateway/Mailbox/` に配置する。
 Tests asmdef は `UniTestify` と `UniTestify.Editor`、UI コンポーネントの検証用に `UnityEngine.UI` と `Unity.TextMeshPro` を参照する。
 Runtime asmdef も uGUI の型を直接利用するため `UnityEngine.UI` を明示参照する。

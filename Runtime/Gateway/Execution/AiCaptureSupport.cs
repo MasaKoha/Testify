@@ -30,10 +30,9 @@ namespace UniTestify
         internal static string Request(string name, string outputDirectory)
         {
             ValidateName(name);
-            var projectRoot = Path.GetDirectoryName(Application.dataPath);
             var directory = string.IsNullOrEmpty(outputDirectory)
                 ? Path.Combine(DebugOutputPath.DirectoryPath, "captures")
-                : Path.GetFullPath(Path.Combine(projectRoot, outputDirectory));
+                : DebugOutputPath.ResolveRelative(outputDirectory);
             Directory.CreateDirectory(directory);
             var path = Path.GetFullPath(Path.Combine(directory, name + ".png"));
             // 前回のファイルを今回の撮影完了と誤認しないようにする。

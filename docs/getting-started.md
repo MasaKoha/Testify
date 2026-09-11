@@ -126,7 +126,103 @@ GameAdapterRegistry.CommandHandler = new MyGameCommandHandler(...); // 素材付
 
 - `IGameBusyProvider.IsBusy` が true の間、`agent.act` は「落ち着いていない」として観測を待ち、観測に `agent: busy=<Reason>` が出る。ローディングオーバーレイや入力ブロックの状態をそのまま返せばよい
 
-## 5. うまくいかないとき
+## 5. 実機 Development Build で自律実行する
+
+`ScenarioAutorun` が起動シーンの読み込み後に設定を一度読み、指定秒数後に `UiScenarioRunner.Run` を開始する。
+メールボックスの起動・`.enabled` は不要。待機は `Time.timeScale` に依存しない実時間。
+シナリオ実行後もアプリは終了しない。設定が残っていれば、次回のアプリ起動／Editor の Play 開始でも実行する。
+
+### 初回起動用の設定をビルドへ含める
+
+初回起動前は `persistentDataPath` 配下へ設定ファイルを置けないため、
+付属の `Runtime/Resources/UniTestifySettings.asset` を Inspector で編集して Development Build に含める。
+`Resources.Load<UniTestifySettings>("UniTestifySettings")` で読み込まれる。
+
+| フィールド | 既定値 | 指定する内容 |
+|---|---|---|
+| `autorunScenarioPath` | 空文字 | シナリオ JSON のパス。空なら自律実行しない |
+| `autorunDelaySeconds` | `2` | 起動シーン読み込み後の待機秒数。0 は待機なし。有限の 0 以上 |
+
+- コピー導入なら `Assets/UniTestify/Runtime/Resources/UniTestifySettings.asset` を編集する。
+- UPM 導入ならパッケージを埋め込み／ローカル化して、パッケージ内の付属アセットを編集する。
+- アセットを作り直す場合は `Assets > Create > UniTestify > Settings` で作成し、
+  上記の `Runtime/Resources/UniTestifySettings.asset` に置く。同じ Resources パスの設定アセットは 1 個にする。
+
+このアセットに入るのは設定だけで、シナリオ本体はコピーされない。
+シナリオは `persistentDataPath` 配下、または設定で指すファイルとして読み取れるパスへ別途配置する。
+初回から実行する場合も、指定した待機時間の終了までにそのパスでシナリオを読める状態にする。
+Android の APK 内 `StreamingAssets` を `UnityWebRequest` で読む処理は含まない。
+
+### 外部ファイルで上書きする
+
+実機の `<Application.persistentDataPath>/DebugOutput/scenario-autorun.json` に置く:
+
+```json
+{"path":"scenarios/tour.json","name":"device-tour","delaySeconds":2.0}
+```
+
+`path` / `name` は文字列、`delaySeconds` は有限の 0 以上の数値。
+JSON の指定フィールドがビルド設定を上書きし、省略フィールドはビルド設定を維持する。
+`name` の省略・空文字はシナリオファイルの拡張子を除いた名前を使う。
+`{"path":""}` でビルド時の自律実行を無効にできる。壊れた JSON・型違い・不正な秒数はログへ出して起動を中止する。
+
+相対パスは Editor では Unity プロジェクトルート、実機では `Application.persistentDataPath` を基準にする。
+上の例の実機シナリオ本体は `<persistentDataPath>/scenarios/tour.json`。
+絶対パスも指定できる。この基準は `scenario.run` の `path` と、`capture` / `agent.observe` の
+`directory` 指定でも共通。撮影先を省略すると `<DebugOutputPath.DirectoryPath>/captures` になる。
+シナリオ本体の `outputDirectory` は既存仕様のままなので、実機で既定出力先を使う場合は省略する。
+
+### Android へ配置・結果を回収する
+
+Development Build をインストールして一度起動し、実際の `Application.persistentDataPath` を確認して停止する。
+Android では通常 `/storage/emulated/0/Android/data/<アプリID>/files`。
+実際の端末のパスを使う（[Unity の persistentDataPath](https://docs.unity3d.com/ScriptReference/Application-persistentDataPath.html)）。
+次のアプリ ID・起動 Activity・永続データパスは対象ビルドに合わせる:
+
+```sh
+APPLICATION_ID='com.example.game'
+LAUNCH_COMPONENT='com.example.game/com.unity3d.player.UnityPlayerActivity'
+DEVICE_DATA="/storage/emulated/0/Android/data/${APPLICATION_ID}/files"
+DEVICE_OUTPUT="${DEVICE_DATA}/DebugOutput"
+
+adb shell am force-stop "$APPLICATION_ID"
+adb shell mkdir -p "$DEVICE_OUTPUT" "${DEVICE_DATA}/scenarios"
+adb push ./tour.json "${DEVICE_DATA}/scenarios/tour.json"
+adb push ./scenario-autorun.json "${DEVICE_OUTPUT}/scenario-autorun.json"
+adb shell rm -f "${DEVICE_OUTPUT}/scenario-autorun.done.json"
+adb shell am start -n "$LAUNCH_COMPONENT"
+```
+
+完了時に `DebugOutput/scenario-autorun.done.json` ができる。内容は結果の絶対パスと既存ランナーの判定:
+
+```json
+{"path":"<persistentDataPath>/DebugOutput/scenario-results/device-tour-<日時>-<識別子>/result.json","verdict":"pass"}
+```
+
+前回の完了ファイルは自律実行の待機開始前に削除する。結果は起動ごとのディレクトリへ保存し、過去の結果を上書きしない。
+シナリオが開始できない場合や結果を保存できない場合は、完了ファイルを生成せず `[ScenarioAutorun]` のログへ理由を出す。
+完了ファイルの生成後に回収する:
+
+```sh
+adb pull "${DEVICE_OUTPUT}/scenario-autorun.done.json" ./scenario-autorun.done.json
+adb pull "$DEVICE_OUTPUT" ./device-DebugOutput
+```
+
+回収した `result.json` の `verdict` を、同じシナリオを Editor で実行した結果と比較する。
+`tap` / `swipe` / `pinch` を含むシナリオでは、仮想 `Touchscreen` の入力が実機 UI に届くことも依頼者が確認する。
+
+### Standalone / Editor の起動引数
+
+```sh
+./Game -unitestify-scenario scenarios/tour.json
+```
+
+`-unitestify-scenario <path>` はパスだけを JSON より後に上書きする。名前と待機秒数は JSON／ビルド設定を使う。
+`-` で始まるファイル名は `./` を付けるか絶対パスで指定する。
+Editor も同じ起動引数を受け、Play 開始時に実行する。Editor の外部設定と成果物はプロジェクト直下の `DebugOutput/`。
+Android ではこの起動引数を読まない。
+
+## 6. うまくいかないとき
 
 | 症状 | 見るところ |
 |---|---|
