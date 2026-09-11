@@ -126,6 +126,54 @@ GameAdapterRegistry.CommandHandler = new MyGameCommandHandler(...); // 素材付
 
 - `IGameBusyProvider.IsBusy` が true の間、`agent.act` は「落ち着いていない」として観測を待ち、観測に `agent: busy=<Reason>` が出る。ローディングオーバーレイや入力ブロックの状態をそのまま返せばよい
 
+### アダプタ注入（Editor 限定・任意）
+
+`com.unity.pipeline` によって `TESTIFY_PIPELINE` が有効な Editor では、利用側リポジトリへ
+アダプタをコミットせず、外部ディレクトリのソースをセッション開始時にコンパイル・登録できる。
+`TestProject/` の既定 manifest には Pipeline が入っていないため、この機能の確認には利用側で導入する。
+実 API のソース確認は `0.6.0-exp.1` で行った。設計時点の `0.4.0-exp.1` はこの環境に無く、互換性は未確認。
+
+たとえば `<Unity プロジェクト>/DebugOutput/adapters/SessionBusyProvider.cs` に次を置く。
+
+```csharp
+namespace SessionAdapters
+{
+    using UniTestify;
+
+    /// <summary>注入した busy 判定が観測へ届くことを確認するアダプタです。</summary>
+    public sealed class SessionBusyProvider : IGameBusyProvider
+    {
+        /// <summary>注入の動作確認中は操作を受け付けない状態にします。</summary>
+        public bool IsBusy => true;
+
+        /// <summary>組み込みの busy 理由と区別するための識別子です。</summary>
+        public string Reason => "adapter-injected";
+    }
+}
+```
+
+PlayMode でセッションを開始する。
+
+```bash
+python3 "$CLIENT" agent.begin '{"goal":{"freePlay":true},"options":{"adaptersDirectory":"DebugOutput/adapters"}}'
+```
+
+最初の観測に `agent: busy=adapter-injected` が出れば登録が反映されている。
+実際の運用では `IsBusy` と `Reason` をゲーム側の状態判定へ差し替える。
+登録だけを行う場合は `python3 "$CLIENT" adapters.load '{"directory":"DebugOutput/adapters"}'` を使う。
+`directory` / `options.adaptersDirectory` は Unity プロジェクトからの相対パス、またはリポジトリ外の絶対パスを指定できる。
+
+対象は指定ディレクトリ直下の `*.cs`。ファイルパスの昇順で改行を挟んで連結するため、
+複数ファイルの `using` は例のように各ブロック namespace 内に置く。
+登録対象は `IGameStateProvider` / `IGameBusyProvider` / `IGameCommandHandler` を実装する、
+公開の引数なしコンストラクタを持つ非抽象クラス。複数契約を持つ型は同じインスタンスを共有する。
+同じ完全型名（名前空間を含む）が登録済みならスキップする。登録窓口は契約ごとに一つで、異なる型なら後の登録が置き換える。
+再読込は同じ型の差し替えには使えず、ドメインリロード後は再注入が必要。
+
+`adaptersDirectory` の省略・空文字では注入しない。注入に失敗した `agent.begin` は新しいセッションを開始せず、
+`ok:false` と `message` に診断・例外の原文を返す。Pipeline 未導入または Player では
+`message:"TESTIFY_PIPELINE が無効です"` を返す。失敗前までに登録された型の巻き戻しは行わない。
+
 ## 5. 実機 Development Build で自律実行する
 
 `ScenarioAutorun` が起動シーンの読み込み後に設定を一度読み、指定秒数後に `UiScenarioRunner.Run` を開始する。

@@ -54,7 +54,7 @@ namespace UniTestify
         public string path;
         /// <summary>シナリオ完了を待つ実時間の上限です。</summary>
         public float scenarioTimeoutSeconds = DefaultScenarioTimeoutSeconds;
-        /// <summary>成果物の保存先です。</summary>
+        /// <summary>成果物の保存先、または adapters.load のソースディレクトリです。</summary>
         public string directory;
         /// <summary>返すログの末尾行数です。</summary>
         public int count = DefaultConsoleCount;

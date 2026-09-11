@@ -68,7 +68,7 @@ namespace UniTestify
         /// <summary>登録済み操作名の一覧を返します。</summary>
         public static string[] ListOps()
         {
-            return new[] { "ping", "ops", "agent.begin", "agent.observe", "agent.find", "agent.act", "agent.goal", "agent.end", "agent.export", "capture", "snapshot", "scene.dump", "console", "scenario.run", "scenario.status" };
+            return new[] { "ping", "ops", "adapters.load", "agent.begin", "agent.observe", "agent.find", "agent.act", "agent.goal", "agent.end", "agent.export", "capture", "snapshot", "scene.dump", "console", "scenario.run", "scenario.status" };
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -150,6 +150,7 @@ namespace UniTestify
             {
                 case "ping": return Success(operation, $"playMode={Application.isPlaying} scene={SceneManager.GetActiveScene().name} frame={Time.frameCount}");
                 case "ops": return Success(operation, string.Join("\n", ListOps()));
+                case "adapters.load": return LoadAdapters(arguments.directory);
                 case "agent.begin": return ConvertResult(operation, AgentSessionCommands.Begin(context.GetObject("goal", true), context.GetObject("options")));
                 case "agent.observe": return Observe(arguments);
                 case "agent.find": return AgentFind.Find(UiSnapshot.Capture(), arguments.label, arguments.kind, arguments.scope);
@@ -437,6 +438,12 @@ namespace UniTestify
             }
 
             return response;
+        }
+
+        private static AiCommandResponse LoadAdapters(string directory)
+        {
+            var result = GameAdapterLoader.Load(directory);
+            return new AiCommandResponse { ok = result.Ok, op = "adapters.load", message = result.Message };
         }
 
         private static AiCommandResponse ReadConsole(AiCommandArguments arguments)

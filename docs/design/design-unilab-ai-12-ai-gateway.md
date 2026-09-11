@@ -39,6 +39,31 @@ HTTP 応答 JSON の `text` を分離し、従来と同じメタデータ一行�
 Android の Internet Access Require、`adb forward` / `iproxy`、iOS LAN プライバシーの
 OS 仕様との差異は [接続手順](../getting-started.md#6-実機へ-http-で一手ずつ接続する) に記録する。
 
+## T6: アダプタ注入（2026-09-11）
+
+`adapters.load {"directory":"DebugOutput/adapters"}` を `AiCommandDispatcher` の `switch` と `ListOps` に追加する。
+Runtime の `GameAdapterLoader` は `internal static Func<string, GameAdapterLoadResult> Loader` を持ち、
+`Pipeline/Adapters/AiAdapterInjector` が `[InitializeOnLoadMethod]` で登録する。
+Injector だけを `TESTIFY_PIPELINE && UNITY_EDITOR` で囲い、Loader 未登録なら
+`ok:false, message:"TESTIFY_PIPELINE が無効です"` を返す。共通応答フィールドは追加しない。
+
+指定ディレクトリ直下の `*.cs` をパス昇順で改行連結し、`UniTestifyAdapters` を基底名としてコンパイルする。
+設計基準の Pipeline `0.4.0-exp.1` に対し、確認できた現物は `0.6.0-exp.1`。
+実際の internal 型は `Unity.Pipeline.Compilation.HotReloadCompiler` であり、
+`CompileSourceCodeOnMainThread` を反射で呼ぶ。戻り値はアセンブリやパスそのものではなく `HotReloadCompileResult`。
+既定では保存しないため `OutputPath` は使わず、`AssemblyName` に一致するロード済みアセンブリの `GetTypes()` を使う。
+参照 API 名は Injector の定数に集約し、失敗結果の `Error` / `ErrorDetails` / `Diagnostics`、
+および例外の内部例外を含む原文を `message` に残す。`0.4.0-exp.1` 自体との互換性は未確認。
+
+Runtime の `GameAdapterTypeBinder.Bind(Type[])` が公開の引数なしコンストラクタを持つ非抽象・非オープン総称型を選び、
+`IGameStateProvider` / `IGameBusyProvider` / `IGameCommandHandler` の各登録先へ同じ生成インスタンスを渡す。
+既存登録および今回の登録の完全型名と重複する型は構築前にスキップし、非該当型は無視する。
+各登録先は既存の単一プロパティのため異なる型の後続登録で置き換わる。失敗時の登録巻き戻しは行わない。
+
+`agent.begin` は目標・PlayMode 検証後、セッション破棄・生成より前に
+`options.adaptersDirectory` が空でなければ同じ Loader を呼ぶ。失敗時は新規セッションを開始せず、その message を返す。
+省略・空文字では従来の開始経路を使う。観測本文・成果物 JSON の形式は維持する。
+
 ## 操作一覧
 
 `AiCommandRequest` は `op` と `args` を持つ。`args` は JSON オブジェクトを格納した**文字列**で、
@@ -48,7 +73,8 @@ OS 仕様との差異は [接続手順](../getting-started.md#6-実機へ-http-�
 |---|---|---|
 | `ping` | なし | `playMode=<bool> scene=<name> frame=<n>` |
 | `ops` | なし | 登録済み op を改行区切りで返す |
-| `agent.begin` | `goal` 必須、`options` 任意 | freePlay:true は期待値 0 件を許可。それ以外は拒否 |
+| `adapters.load` | `directory` 必須（プロジェクト相対または絶対） | Editor 限定の外部アダプタ注入。成否と診断は既存の `ok` / `message` |
+| `agent.begin` | `goal` 必須、`options` 任意（`adaptersDirectory` で注入先指定） | freePlay:true は期待値 0 件を許可。それ以外は拒否。指定時はセッション生成前にアダプタを注入 |
 | `agent.observe` | `diffOnly=false`、`scope="visible"`、`capture`・`directory` 任意、`view=""`（`game` / `simulator`） | 現在の観測。撮影指定時は画像情報も返す。view の同期経路はフォーカス適用のみ |
 | `agent.find` | `label`、`kind` 任意、`scope="visible"` | 観測を検索し、一件一行で推奨 target spec を返す |
 | `agent.act` | `action` または空でない `steps` 配列、各手の `waitFor*` と `timeoutSeconds=30`、`expect` 任意 | 各手を順に実行し、待機失敗・expect 未達・status が running 以外なら打ち切る |

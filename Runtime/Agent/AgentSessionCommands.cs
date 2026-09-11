@@ -35,8 +35,18 @@ namespace UniTestify
                 return ToJson(false, string.Empty, "playMode が必要です", string.Empty, string.Empty);
             }
 
-            _currentSession?.Dispose();
             var options = string.IsNullOrEmpty(optionsJson) ? new AgentOptions() : JsonUtility.FromJson<AgentOptions>(optionsJson);
+            if (!string.IsNullOrEmpty(options.adaptersDirectory))
+            {
+                var loadResult = GameAdapterLoader.Load(options.adaptersDirectory);
+                if (!loadResult.Ok)
+                {
+                    return ToJson(false, string.Empty, loadResult.Message, string.Empty, string.Empty);
+                }
+            }
+
+            // 注入に失敗した要求では、開始済みセッションを破棄しない。
+            _currentSession?.Dispose();
             _currentSession = AgentSession.Begin(goal, options);
             return ToJson(true, _currentSession.SessionId, "セッションを開始しました。", _currentSession.Observe(false), _currentSession.OutputDirectory);
         }
