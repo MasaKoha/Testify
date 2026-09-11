@@ -594,3 +594,102 @@ T1・T2・T7 の機能は再実装していない。
    コンポーネントと結線情報を収集するため。必要なら JSON 全保存との互換を保って収集範囲を分ける。
 2. 同期 CLI で成立まで待つ必要が出たら、Pipeline 側の非同期コマンド契約を確認して共通の
    `ExecuteAsync` へ接続すべき。理由は同期呼び出し内でメインスレッドを止めるとシーン遷移も進まないため。
+
+## 2026-09-11 — T4 legacy uGUI Text の観測対応
+
+### 実装内容
+
+T4 のみを実装した。ブランチ切り替えを含む Git 操作は行っていない。
+T1・T2・T3・T7 の再実装と T5 以降の変更はない。
+
+- `UiSnapshotElementCollector` に `FindObjectsByType<Text>` を追加した。派生型も対象とし、
+  有効な Graphic・オーバーレイ除外・Selectable 配下の二重計上回避を TMP と共用する。
+- `UiSnapshotElementFactory` に `Text` オーバーロードを追加し、`Graphic` と文言を受ける
+  private メソッドへ変換を集約した。要素ごとのデリゲートや配列連結は生成しない。
+  空文字は TMP / legacy 共通で矩形計算前に除外する。種別は既存の `Text`、独立ラベル上限は 120 文字。
+- `UiInputLocator.HasVisibleText` に legacy Text の走査を追加した。文字色・Canvas・
+  CanvasGroup の判定を `Graphic` で共用し、TMP 固有の alpha 確認も維持する。
+  TMP で一致した場合の追加走査は省き、ソート不要の検索を使う。
+- `UiVisibilityUtility.FindSelectableLabel` に legacy Text を追加した。既存の TMP 優先順と、
+  有効状態・オーバーレイ除外・最寄りの Selectable に属する文言だけを使う規則を維持する。
+- `TMP_InputField` / `InputField` の legacy Text placeholder を親のラベルへ取り込む。
+  ラベル上限は既存の 80 文字。入力欄の種別・値取得・入力操作は変更しない。
+- 新しい op / 引数 / 応答フィールドはない。観測テキストの整形・JSON スキーマ・期待値評価器は変更しない。
+
+### 表の記述と実物の相違・解決
+
+| 項目 | 実物 | 対応 |
+|---|---|---|
+| `kind` は既存の `text` | 実装と既存テストは大文字の `Text` / `[Text]` | 大文字の既存値を維持した |
+| `UiInputLocator` の Selectable ラベル検索へ Text を追加 | `GetComponentsInChildren<TMP_Text>` の直後に legacy Text の検索が実装済み | この検索は再実装せず維持。未対応の `UiVisibilityUtility` にだけ観測用ラベル抽出を追加した |
+| 空文字の除外 | TMP の Factory は空文字も要素化し、圧縮テキスト整形時に除外していた | Factory で TMP / legacy 共通に空文字を除外。表示形式と既存テストの期待値は維持した |
+| `InputField.placeholder` の Text | Factory の専用ラベル抽出は `TMP_InputField` と `TextMeshProUGUI` のみ。Collector は Selectable 配下の文字をすべて除外 | 両入力欄の placeholder Graphic から Text の文言も読む。親ラベルへ集約し、独立した Text として重複追加しない。legacy InputField の既存 `kind:Selectable`・空の `value` は維持 |
+| `textVisible` / `textAbsent` の経路 | Agent / Scenario の評価器は `HasVisibleText` を呼ばず、スナップショットのラベルを読む | 収集結果へ文言を追加して両方に対応。`HasVisibleText` の変更は文字待機へ適用される |
+| uGUI の型参照 | Runtime と EditMode の asmdef に `UnityEngine.UI` の直接参照がない | ローカルの uGUI ソース・asmdef で定義を確認し、両 asmdef に直接参照を追加。TMP コンポーネントを使う新規テストには `Unity.TextMeshPro` も明示した |
+
+### 追加・変更ファイル一覧
+
+Runtime の新規 C#・新規フォルダはない。新規テスト 1 ファイルに `.cs.meta` を追加した。
+既存 `.meta` は変更していない。
+
+| ファイル | 種別 |
+|---|---|
+| `Runtime/Snapshot/Collection/UiSnapshotElementCollector.cs` | 変更 |
+| `Runtime/Snapshot/Collection/UiSnapshotElementFactory.cs` | 変更 |
+| `Runtime/Ui/UiInputLocator.cs` | 変更 |
+| `Runtime/Ui/UiVisibilityUtility.cs` | 変更 |
+| `Runtime/UniTestify.asmdef` | 変更 |
+| `Tests/EditMode/Runtime/Snapshot/UiSnapshotLegacyTextTest.cs` | 追加 |
+| `Tests/EditMode/Runtime/Snapshot/UiSnapshotLegacyTextTest.cs.meta` | 追加 |
+| `Tests/EditMode/UniTestify.Tests.EditMode.asmdef` | 変更 |
+| `docs/ops-reference.md` | 変更 |
+| `docs/architecture.md` | 変更 |
+| `docs/implementation.md` | 変更 |
+
+### 追加したテスト（未実行）
+
+`UiSnapshotLegacyTextTest` に 12 メソッド、TestCase 展開で 22 ケースを追加した。
+
+| テスト名 | 確認対象 |
+|---|---|
+| `CollectsLegacyTextUnderCanvas` | Canvas 配下の Text の要素化、既存種別・文言・フォーカス・圧縮表記 |
+| `CollectsDerivedLegacyText` | Text 派生型の収集と文字待機 |
+| `ExcludesEmptyLegacyText` | 空文字・null の要素化拒否と収集除外 |
+| `ExcludesEmptyTextMeshPro` | TMP 側も同じ Factory の空文字除外を使うこと |
+| `ExcludesDisabledOrOverlayLegacyText` | 無効 Text とオーバーレイ配下の除外 |
+| `CollectsLegacySelectableLabelOnce` | ボタンのラベル抽出・二重計上回避・既存の label 指定・無効ラベル除外 |
+| `IgnoresLegacyLabelsOwnedByNestedSelectables` | 入れ子の Selectable のラベルを親へ取り込まないこと |
+| `CollectsLegacyInputPlaceholder` | TMP / legacy 入力欄の legacy placeholder のラベル化と既存の種別・値 |
+| `HasVisibleLegacyTextChecksAlpha` | 文字色・CanvasGroup の透明度と既存の閾値 |
+| `HasVisibleLegacyTextTracksActivation` | Text・GameObject・Canvas の無効化 |
+| `HasVisibleLegacyTextHonorsIgnoreParentGroups` | CanvasGroup の祖先透明度の打ち切り |
+| `TextExpectationsFollowLegacyTextPresence` | Agent / Scenario 双方の textVisible / textAbsent |
+
+### 静的確認
+
+- `Text` / `Graphic` / `InputField` / TMP の定義・namespace と asmdef をローカルソースで照合した。
+  `InternalsVisibleTo("UniTestify.Tests.EditMode")` によりテストから収集・生成クラスを参照できる。
+- 変更した Runtime C# は `UNITY_EDITOR || DEVELOPMENT_BUILD` の囲いを維持した。
+  コンポーネント探索の追加は観測・文字待機に限定し、メールボックス Update・オーバーレイ描画への追加はない。
+- `Runtime/Ui/` は 9、`Runtime/Snapshot/Collection/` は 4 のまま。
+  `Tests/EditMode/Runtime/Snapshot/` は 3→4、EditMode 全体は 29→30（Runtime 対象 29 / Editor 対象 1）。
+  構成表を更新し、追加 `.meta` の GUID と既存 GUID の重複がないことを照合した。
+- ゲーム用ライブラリへの依存追加はない。観測テキストの整形処理と既存テストの期待値は変更していない。
+- **Unity の起動・インポート・コンパイル・ビルド・テスト実行は行っていない。**
+
+### 未実行の確認事項・依頼者の受け入れ確認
+
+1. TestProject または利用側でコンパイルし、追加した EditMode 22 ケースと既存テストを実行する。
+2. legacy Text だけの画面で `agent.observe` に文言が `[Text]` として出ること。
+   Text 派生型、空文字、ボタンのラベル、InputField の placeholder も確認する。
+3. 同じ画面で `textVisible` が成立し、該当オブジェクトを無効化後の新しい観測で `textAbsent` が成立すること。
+   対話操作・目標・シナリオの経路を確認する。
+4. `waitForText` が legacy Text を検出し、文字色や CanvasGroup を透明にすると成立しないこと。
+   `label:` 指定が legacy のボタン文言を解決すること。
+5. TMP のみ／TMP と legacy の混在画面でラベル選択、親への集約、クリップ・遮蔽・scope と既存表記を確認する。
+
+### 提案（このランでは実装しない）
+
+1. スナップショットと文字待機の可視判定を別タスクで揃えるべき。理由は、現状のスナップショットは
+   Graphic の enabled を入口とし、文字待機は文字色と CanvasGroup の透明度まで確認するため。
+   今回は T4 の範囲に合わせ、TMP と legacy の双方へ既存の各経路の規則を適用した。

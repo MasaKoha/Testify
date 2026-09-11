@@ -1,7 +1,7 @@
 {
     "name": "UniTestify.Tests.EditMode",
     "rootNamespace": "UniTestify.Tests",
-    "references": ["UniTestify", "UniTestify.Editor", "Unity.InputSystem", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
+    "references": ["UniTestify", "UniTestify.Editor", "UnityEngine.UI", "Unity.TextMeshPro", "Unity.InputSystem", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
     "includePlatforms": ["Editor"],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

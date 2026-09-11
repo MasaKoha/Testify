@@ -35,12 +35,25 @@ namespace UniTestify
             for (var textIndex = 0; textIndex < textObjects.Length; textIndex++)
             {
                 var textObject = textObjects[textIndex];
-                if (textObject == null || !UiVisibilityUtility.IsVisibleGraphicObject(textObject.gameObject))
+                if (!IsStandaloneText(textObject))
                 {
                     continue;
                 }
 
-                if (textObject.GetComponentInParent<Selectable>() != null)
+                if (!UiSnapshotElementFactory.TryCreateTextElement(textObject, selectedObject, out var element))
+                {
+                    continue;
+                }
+
+                elements.Add(element);
+            }
+
+            // perf: 観測時だけ走査し、TMP の配列との連結や要素ごとのデリゲート生成を避ける。
+            var legacyTextObjects = UnityEngine.Object.FindObjectsByType<Text>(FindObjectsSortMode.None);
+            for (var textIndex = 0; textIndex < legacyTextObjects.Length; textIndex++)
+            {
+                var textObject = legacyTextObjects[textIndex];
+                if (!IsStandaloneText(textObject))
                 {
                     continue;
                 }
@@ -55,6 +68,13 @@ namespace UniTestify
 
             elements.Sort(CompareElements);
             return elements;
+        }
+
+        private static bool IsStandaloneText(Graphic textObject)
+        {
+            return textObject != null
+                && UiVisibilityUtility.IsVisibleGraphicObject(textObject.gameObject)
+                && textObject.GetComponentInParent<Selectable>() == null;
         }
 
         private static int CompareElements(UiSnapshotElement left, UiSnapshotElement right)

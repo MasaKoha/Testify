@@ -221,6 +221,13 @@ Canvas activeInHierarchy=true
 
 ## 観測テキストの読み方
 
+文言の観測対象は `TextMeshProUGUI` と legacy uGUI の `UnityEngine.UI.Text`（派生型を含む）。
+独立した文言はどちらも既存の `kind:"Text"` / `[Text]` で出力し、空文字は要素化しない。
+Selectable 配下の文言は親のラベルへまとめる。観測用ラベルの候補が混在するときは従来の TMP を優先する。
+`TMP_InputField` / `InputField` の placeholder が legacy `Text` の場合も親のラベルとして扱う。
+`textVisible` / `textAbsent` はこれらの観測ラベルを同じ規則で評価し、`label:` 指定も両方の文字を検索する。
+`waitForText` は両方に対し、有効状態・文字色・Canvas・祖先 CanvasGroup の透明度を判定する。
+
 ```
 scene=Home focus=DollRow/DollButton0(アリア)
 [Text] AssetsBar/GoldValue 「120G」

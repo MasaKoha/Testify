@@ -39,9 +39,7 @@ namespace UniTestify
             var toggle = selectable as Toggle;
             var slider = selectable as Slider;
             var button = selectable as Button;
-            var label = inputField == null
-                ? UiVisibilityUtility.FindSelectableLabel(selectable.gameObject, SelectableLabelLength)
-                : GetInputPlaceholderLabel(inputField);
+            var label = GetSelectableLabel(selectable);
 
             element = new UiSnapshotElement
             {
@@ -63,7 +61,23 @@ namespace UniTestify
         /// <summary>独立したテキストの意味と可視性を取得できた場合に観測要素を返します。</summary>
         internal static bool TryCreateTextElement(TextMeshProUGUI textObject, GameObject selectedObject, out UiSnapshotElement element)
         {
+            return TryCreateTextElement(textObject, textObject.text, selectedObject, out element);
+        }
+
+        /// <summary>legacy Text とその派生型を TMP と同じ観測要素へ変換します。</summary>
+        internal static bool TryCreateTextElement(Text textObject, GameObject selectedObject, out UiSnapshotElement element)
+        {
+            return TryCreateTextElement(textObject, textObject.text, selectedObject, out element);
+        }
+
+        private static bool TryCreateTextElement(Graphic textObject, string text, GameObject selectedObject, out UiSnapshotElement element)
+        {
             element = null;
+            if (string.IsNullOrEmpty(text))
+            {
+                return false;
+            }
+
             var rectTransform = textObject.transform as RectTransform;
             if (rectTransform == null)
             {
@@ -80,7 +94,7 @@ namespace UniTestify
                 path = UiVisibilityUtility.BuildPath(textObject.transform),
                 name = textObject.name,
                 kind = TextKind,
-                label = UiVisibilityUtility.Truncate(textObject.text, TextLabelLength),
+                label = UiVisibilityUtility.Truncate(text, TextLabelLength),
                 rect = rectValues,
                 offscreen = UiVisibilityUtility.ComputeVisibleRatio(rectValues, new[] { 0f, 0f, (float)Screen.width, Screen.height }) < MinimumScreenVisibleRatio,
                 clipped = IsClipped(rectTransform, rectValues),
@@ -158,20 +172,39 @@ namespace UniTestify
             return string.Empty;
         }
 
-        private static string GetInputPlaceholderLabel(TMP_InputField inputField)
+        private static string GetSelectableLabel(Selectable selectable)
         {
-            if (inputField == null || inputField.placeholder == null)
+            if (selectable is TMP_InputField inputField)
+            {
+                return GetInputPlaceholderLabel(inputField.placeholder);
+            }
+
+            if (selectable is InputField legacyInputField)
+            {
+                return GetInputPlaceholderLabel(legacyInputField.placeholder);
+            }
+
+            return UiVisibilityUtility.FindSelectableLabel(selectable.gameObject, SelectableLabelLength);
+        }
+
+        private static string GetInputPlaceholderLabel(Graphic placeholder)
+        {
+            if (placeholder == null)
             {
                 return string.Empty;
             }
 
-            var textObject = inputField.placeholder.GetComponent<TextMeshProUGUI>();
-            if (textObject == null)
+            if (placeholder is TextMeshProUGUI textObject)
             {
-                return string.Empty;
+                return UiVisibilityUtility.Truncate(textObject.text, SelectableLabelLength);
             }
 
-            return UiVisibilityUtility.Truncate(textObject.text, SelectableLabelLength);
+            if (placeholder is Text legacyTextObject)
+            {
+                return UiVisibilityUtility.Truncate(legacyTextObject.text, SelectableLabelLength);
+            }
+
+            return string.Empty;
         }
 
         private static string GetTextBlockingObjectName(GameObject target)
