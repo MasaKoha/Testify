@@ -6,6 +6,40 @@ namespace UniTestify.Tests
     /// <summary>PlayMode 不要のゲートウェイ契約を検証します。</summary>
     public sealed class AiCommandDispatcherTest
     {
+        /// <summary>同期入口でも不正な view を既存の失敗応答へ変換します。</summary>
+        [TestCase("capture")]
+        [TestCase("agent.observe")]
+        public void InvalidViewReturnsFailure(string operation)
+        {
+            var response = AiCommandDispatcher.Execute(new AiCommandRequest { op = operation, args = "{\"view\":\"other\"}" });
+            Assert.That(response.ok, Is.False);
+            Assert.That(response.error, Does.Contain("view"));
+            Assert.That(response.view, Is.Empty);
+            Assert.That(response.path, Is.Empty);
+        }
+
+        /// <summary>非同期入口でもフォーカスや撮影より先に不正な view を拒否します。</summary>
+        [TestCase("capture")]
+        [TestCase("agent.observe")]
+        public void AsyncInvalidViewReturnsFailure(string operation)
+        {
+            AiCommandResponse response = null;
+            var execution = AiCommandDispatcher.ExecuteAsync(
+                new AiCommandRequest { op = operation, args = "{\"view\":\"other\"}" }, result => response = result);
+            try
+            {
+                Assert.That(execution.MoveNext(), Is.False);
+                Assert.That(response.ok, Is.False);
+                Assert.That(response.error, Does.Contain("view"));
+                Assert.That(response.view, Is.Empty);
+                Assert.That(response.path, Is.Empty);
+            }
+            finally
+            {
+                ((System.IDisposable)execution).Dispose();
+            }
+        }
+
         /// <summary>未知の操作を成功扱いしないことを保証します。</summary>
         [Test]
         public void UnknownOperationReturnsFailure()

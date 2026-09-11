@@ -26,7 +26,7 @@ namespace UniTestify.Tests
             Directory.Delete(_directory, true);
         }
 
-        /// <summary>内側の JSON 文字列と日本語の本文を壊さず往復します。</summary>
+        /// <summary>内側の JSON 文字列・日本語の本文・適用した view を壊さず往復します。</summary>
         [Test]
         public void RequestAndResponseRoundTrip()
         {
@@ -37,10 +37,11 @@ namespace UniTestify.Tests
             var response = new AiCommandResponse
             {
                 ok = true, op = request.op, session = "session", message = "完了", text = "本文\n次行",
-                path = "/captures/test.png", settled = true, error = "",
+                path = "/captures/test.png", view = "simulator", settled = true, error = "",
             };
             var json = JsonUtility.ToJson(response);
             var restoredResponse = JsonUtility.FromJson<AiCommandResponse>(json);
+            Assert.That(restoredResponse.view, Is.EqualTo("simulator"));
             Assert.That(JsonUtility.ToJson(restoredResponse), Is.EqualTo(json));
             var legacy = JsonUtility.FromJson<AgentCommandResult>(json);
             Assert.That(legacy.ok, Is.True);

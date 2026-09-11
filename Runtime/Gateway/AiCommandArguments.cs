@@ -29,6 +29,8 @@ namespace UniTestify
         public ScenarioExpectation[] expect;
         /// <summary>観測と同じフレームで撮影する任意の成果物名です。</summary>
         public string capture;
+        /// <summary>撮影・観測対象の Editor ウィンドウです。空、game、simulator を指定します。</summary>
+        public string view = string.Empty;
         /// <summary>ログの対象です。all または error を指定します。</summary>
         public string level = "all";
         /// <summary>対象が操作可能になるまでの実時間の上限です。</summary>
