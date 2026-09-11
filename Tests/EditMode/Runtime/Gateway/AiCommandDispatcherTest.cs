@@ -72,11 +72,112 @@ namespace UniTestify.Tests
             Assert.That(response.ok, Is.True);
             Assert.That(response.text.Split('\n'), Is.EquivalentTo(AiCommandDispatcher.ListOps()));
             Assert.That(response.text, Does.Contain("agent.begin"));
+            Assert.That(response.text, Does.Contain("adapters.load"));
             Assert.That(response.text, Does.Contain("agent.act"));
             Assert.That(response.text, Does.Contain("capture"));
             Assert.That(response.text, Does.Contain("scene.dump"));
             Assert.That(response.text, Does.Contain("scenario.run"));
             Assert.That(response.text, Does.Contain("scenario.status"));
+        }
+
+        /// <summary>Pipeline 未導入を専用の message で返します。</summary>
+        [Test]
+        public void AdaptersLoadWithoutPipelineReturnsMessage()
+        {
+            var previousLoader = GameAdapterLoader.Loader;
+            try
+            {
+                GameAdapterLoader.Loader = null;
+                var response = AiCommandDispatcher.Execute(new AiCommandRequest
+                {
+                    op = "adapters.load", args = "{\"directory\":\"DebugOutput/adapters\"}",
+                });
+
+                Assert.That(response.ok, Is.False);
+                Assert.That(response.op, Is.EqualTo("adapters.load"));
+                Assert.That(response.message, Is.EqualTo("TESTIFY_PIPELINE が無効です"));
+                Assert.That(response.error, Is.Empty);
+            }
+            finally
+            {
+                GameAdapterLoader.Loader = previousLoader;
+            }
+        }
+
+        /// <summary>ディレクトリと注入結果を変更せずに共通ディスパッチャから受け渡します。</summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void AdaptersLoadForwardsDirectoryAndResult(bool succeeded)
+        {
+            const string directory = "/external/adapters";
+            const string message = "元のコンパイル診断";
+            var previousLoader = GameAdapterLoader.Loader;
+            var receivedDirectory = string.Empty;
+            try
+            {
+                GameAdapterLoader.Loader = requestedDirectory =>
+                {
+                    receivedDirectory = requestedDirectory;
+                    return new GameAdapterLoadResult(succeeded, message);
+                };
+                var response = AiCommandDispatcher.Execute(new AiCommandRequest
+                {
+                    op = "adapters.load", args = "{\"directory\":\"" + directory + "\"}",
+                });
+
+                Assert.That(receivedDirectory, Is.EqualTo(directory));
+                Assert.That(response.ok, Is.EqualTo(succeeded));
+                Assert.That(response.message, Is.EqualTo(message));
+            }
+            finally
+            {
+                GameAdapterLoader.Loader = previousLoader;
+            }
+        }
+
+        /// <summary>例外の原文と内部例外を message に残します。</summary>
+        [Test]
+        public void AdaptersLoadPreservesExceptionInMessage()
+        {
+            const string failureMessage = "元のコンストラクタ例外";
+            var previousLoader = GameAdapterLoader.Loader;
+            try
+            {
+                GameAdapterLoader.Loader = directory => throw new System.Reflection.TargetInvocationException(
+                    new System.InvalidOperationException(failureMessage));
+                var response = AiCommandDispatcher.Execute(new AiCommandRequest { op = "adapters.load" });
+
+                Assert.That(response.ok, Is.False);
+                Assert.That(response.message, Does.Contain(failureMessage));
+                Assert.That(response.message, Does.Contain(nameof(System.InvalidOperationException)));
+                Assert.That(response.error, Is.Empty);
+            }
+            finally
+            {
+                GameAdapterLoader.Loader = previousLoader;
+            }
+        }
+
+        /// <summary>メールボックスの非同期入口も同じ注入処理へ渡します。</summary>
+        [Test]
+        public void AsyncAdaptersLoadUsesRegisteredLoader()
+        {
+            const string message = "注入結果";
+            var previousLoader = GameAdapterLoader.Loader;
+            AiCommandResponse response = null;
+            var execution = AiCommandDispatcher.ExecuteAsync(new AiCommandRequest { op = "adapters.load" }, result => response = result);
+            try
+            {
+                GameAdapterLoader.Loader = directory => new GameAdapterLoadResult(true, message);
+                Assert.That(execution.MoveNext(), Is.False);
+                Assert.That(response.ok, Is.True);
+                Assert.That(response.message, Is.EqualTo(message));
+            }
+            finally
+            {
+                ((System.IDisposable)execution).Dispose();
+                GameAdapterLoader.Loader = previousLoader;
+            }
         }
 
         /// <summary>ディレクトリ逸脱や空の撮影名を撮影前に拒否します。</summary>

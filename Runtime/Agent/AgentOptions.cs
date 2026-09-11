@@ -9,6 +9,9 @@ namespace UniTestify
     [Serializable]
     public sealed class AgentOptions
     {
+        /// <summary>Editor のセッション開始時にコンパイル・登録する外部アダプタソースのディレクトリです。空なら注入しません。</summary>
+        public string adaptersDirectory;
+
         /// <summary>
         /// 生入力の候補を必要な方式だけに絞り、LLM に自由記述させないための入力方式です。
         /// </summary>

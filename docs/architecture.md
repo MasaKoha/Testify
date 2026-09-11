@@ -29,6 +29,17 @@
 | `BusyProvider` | `IGameBusyProvider.IsBusy / Reason` | 落ち着き待ちと `agent: busy=` |
 | `CommandHandler` | `IGameCommandHandler` | デバッグコマンド（素材付与等） |
 
+Editor の任意注入は `adapters.load`（または `agent.begin` の `options.adaptersDirectory`）→
+`GameAdapterLoader.Loader` → `Pipeline/Adapters/AiAdapterInjector` → `GameAdapterTypeBinder.Bind(Type[])` →
+`GameAdapterRegistry` の経路。`[InitializeOnLoadMethod]` で Loader を登録し、Runtime から Pipeline への型依存は持たない。
+`InternalsVisibleTo("UniTestify.Pipeline")` で internal の登録口・結果型・Binder を共有する。
+Injector は `#if TESTIFY_PIPELINE && UNITY_EDITOR`、Loader 未登録は専用の失敗 message で返す。
+ソース確認した Pipeline `0.6.0-exp.1` の internal コンパイラを反射で呼び、
+`HotReloadCompileResult.AssemblyName` からロード済みアセンブリを取得する。
+型名・メソッド名・参照する結果プロパティ名は Injector 内の定数に集約する。
+純ロジックの Binder が公開の引数なしコンストラクタと三つの契約で選別し、完全型名の重複をスキップする。
+Runtime 直下は Loader / Binder の二つを加えて 4→6、結果型は一ファイル一主要型の規約に従い `Results/` に置く。
+
 Editor の撮影対象選択は `Editor/Gateway/PlayModeViewFocus` が
 `AiPlayModeViewFocus.FocusHandler` に登録する。Runtime は Editor の型を参照せず、
 `InternalsVisibleTo("UniTestify.Editor")` で internal の登録口を Editor 側から使えるようにする。
@@ -113,7 +124,8 @@ Standalone / Editor の `-unitestify-scenario` のパスの順に上書きする
 | `Runtime/Forensics/` | 6 | 例外時の証拠収集、文脈・保留ログ、ファイルログ出力 |
 | `Runtime/Scene/` | 5 | シーン階層の収集・保存、コンパクトテキスト、シーン・ノード・ダンプモデル |
 | `Runtime/Ui/` | 9 | UI 入力対象の解決、TMP / legacy Text の可視判定・ラベル抽出、観測範囲・準備状態、スクロール、レイアウト監査 |
-| `Runtime/Adapters/` | 4 | ゲーム状態・busy・コマンドの接続契約と登録窓口 |
+| `Runtime/Adapters/` | 6 | ゲーム状態・busy・コマンドの接続契約と登録窓口、任意 Loader、実装型の選別・登録 |
+| `Runtime/Adapters/Results/` | 1 | Pipeline に依存しないアダプタ注入結果 |
 | `Runtime/Core/` | 4 | 環境別の出力先、UniTestifySettings、アセンブリ属性、SerializeField 結線情報 |
 | `Runtime/Resources/` | 0 | `AiMailboxPrefab.asset` の型付き参照とビルド設定の `UniTestifySettings.asset` |
 | `Runtime/RunArchive/` | 3 | ラン概要と性能・視覚回帰の要約モデル |
@@ -130,6 +142,7 @@ Standalone / Editor の `-unitestify-scenario` のパスの順に上書きする
 | `Editor/Snapshot/` | 1 | スナップショット保存・入力オーバーレイ確認メニュー |
 | `Editor/Ui/` | 1 | UI レイアウト監査メニュー |
 | `Pipeline/Agent/` | 6 | エージェントの開始・行動・観測・目標判定・終了・書出し CLI |
+| `Pipeline/Adapters/` | 1 | Editor 限定の外部アダプタコンパイルと Loader 登録 |
 | `Pipeline/Gateway/` | 3 | CLI 引数・実行支援、op 一覧 CLI |
 | `Pipeline/Gateway/Execution/` | 1 | 撮影 CLI |
 | `Pipeline/Gateway/Mailbox/` | 1 | メールボックス CLI |
@@ -142,6 +155,7 @@ Standalone / Editor の `-unitestify-scenario` のパスの順に上書きする
 | `Tests/EditMode/Runtime/Input/` | 0 | 実装のアセンブリ・機能階層に対応する親フォルダ（直下の C# なし） |
 | `Tests/EditMode/Runtime/Input/Overlay/` | 0 | 実装のアセンブリ・機能階層に対応する親フォルダ（直下の C# なし） |
 | `Tests/EditMode/Runtime/Agent/` | 2 | `Runtime/Agent/` に対応する EditMode テスト |
+| `Tests/EditMode/Runtime/Adapters/` | 1 | 三種のアダプタ登録、複数契約、重複・非該当型の選別と例外伝播 |
 | `Tests/EditMode/Runtime/Agent/Actions/` | 3 | `Runtime/Agent/Actions/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Agent/Goals/` | 1 | `Runtime/Agent/Goals/` に対応する EditMode テスト |
 | `Tests/EditMode/Runtime/Agent/Session/` | 2 | `Runtime/Agent/Session/` に対応する EditMode テスト |
@@ -171,7 +185,7 @@ Standalone / Editor の `-unitestify-scenario` のパスの順に上書きする
 既存スクリプトの `.meta` はスクリプトと対で移し、追加フォルダにも `.meta` を置く。
 
 テストは `Tests/EditMode/<実装アセンブリのルート>/<同じ機能パス>/` へ対応させる。
-現存する 33 ファイルのうち 32 ファイルは Runtime、1 ファイルは Editor 対象。
+現存する 34 ファイルのうち 33 ファイルは Runtime、1 ファイルは Editor 対象。
 Editor 操作の要求・応答テストは仕様指定の `Editor/Gateway/Mailbox/` に配置する。
 Tests asmdef は `UniTestify` と `UniTestify.Editor`、UI コンポーネントの検証用に `UnityEngine.UI` と `Unity.TextMeshPro` を参照する。
 Runtime asmdef も uGUI の型を直接利用するため `UnityEngine.UI` を明示参照する。

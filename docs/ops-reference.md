@@ -111,7 +111,8 @@ HTTP ではメールボックスの探索・ファイル生成を行わない。
 |---|---|---|
 | `ping` | – | `playMode=<bool> scene=<name> frame=<n>` |
 | `ops` | – | op 名の一覧 |
-| `agent.begin` | `goal`（必須）, `options` | セッション開始。`goal` は `{"freePlay":true,"maxSteps":5000,"maxSeconds":14400}` か `{"goal":[{"kind":"textVisible","value":"…"}],"maxSteps":…}`。期待値 0 件で freePlay でもない目標は拒否。`options`: `{"stuckRepeatLimit":40,"inputMode":"gamepad","settleFrames":1}` |
+| `adapters.load` | `directory`（必須。プロジェクト相対または絶対パス） | Editor 限定。直下の `*.cs` をコンパイルし、`IGameStateProvider` / `IGameBusyProvider` / `IGameCommandHandler` の実装を登録 |
+| `agent.begin` | `goal`（必須）, `options` | セッション開始。`goal` は `{"freePlay":true,"maxSteps":5000,"maxSeconds":14400}` か `{"goal":[{"kind":"textVisible","value":"…"}],"maxSteps":…}`。期待値 0 件で freePlay でもない目標は拒否。`options`: `{"stuckRepeatLimit":40,"inputMode":"gamepad","settleFrames":1,"adaptersDirectory":"DebugOutput/adapters"}`。`adaptersDirectory` 指定時はセッション生成前に注入 |
 | `agent.observe` | `diffOnly`, `scope`（`visible` 既定 / `all`）, `capture`（撮影名）, `directory`, `view`（`""` 既定 / `game` / `simulator`） | 観測テキスト。`capture` を付けると同じフレームで撮影し `path/width/height/blank` を埋める。`view` の経路別動作は下記 |
 | `agent.act` | `action` または `steps[]`（各手に `waitForText` / `waitForObject` / `waitForFocus` / `waitForScene`、`timeoutSeconds`(30)）, `expect[]`, `settleSeconds`(0.35), `settleTimeoutSeconds`(10), `readyTimeoutSeconds`(5) | 各手: アンカー待ち → 対象の準備待ち → 実行 → 落ち着き待ち → 観測。待機だけも可。待機失敗・`status` が `running` 以外・`expect` 未達で打ち切り |
 | `agent.find` | `label`, `kind`（Button/Text/Toggle/Input/Selectable）, `scope` | ラベル部分一致で要素検索。1 行 1 件、末尾に推奨の `submit:"…"` |
@@ -124,6 +125,36 @@ HTTP ではメールボックスの探索・ファイル生成を行わない。
 | `snapshot` | `compact`(true), `save` | UI スナップショット（`all` 相当。ツール用） |
 | `scene.dump` | `depth`(3), `maxNodes`(200), `filter`（名前の部分一致、任意）, `save`(false) | シーン階層のコンパクトテキスト。`save` で全階層 JSON を `DebugOutput/scene/` に保存し `path` を返す |
 | `console` | `count`(40), `level`（`all` / `error`） | Unity コンソールの末尾。Error/Exception はスタックトレース先頭 3 行付き |
+
+## アダプタ注入
+
+```bash
+python3 "$CLIENT" adapters.load '{"directory":"DebugOutput/adapters"}'
+python3 "$CLIENT" agent.begin '{"goal":{"freePlay":true},"options":{"adaptersDirectory":"DebugOutput/adapters"}}'
+```
+
+`adapters.load` は共通ディスパッチャの同期・非同期入口から Editor のメインスレッド上でコンパイルする。
+単独の `adapters.load` は PlayMode 不要。`agent.begin` は従来どおり PlayMode が必要で、
+目標・PlayMode の検証後、既存セッションの破棄と新規セッション生成より前に注入する。
+`options.adaptersDirectory` の省略・空文字では呼び出さない。
+
+- `directory` は必須。直下の `*.cs` だけをファイルパス昇順で連結し、サブディレクトリは探索しない。
+  絶対パスなら利用側リポジトリ外も指定できる。複数ファイルは `using` を各ブロック namespace 内に置く。
+- 公開の引数なしコンストラクタを持つ非抽象・型引数確定済みの実装クラスを登録する。
+  名前空間を含む同じ型名が登録済み、または同じ要求内で登録済みなら構築せずスキップする。
+  一つの型が複数契約を実装していれば一つのインスタンスを共有する。
+- レジストリは各契約一つ。異なる型の登録はその窓口を置き換える。ドメインリロードで失われ、再注入が必要。
+- 成功時は `ok:true`、`op:"adapters.load"`、`message:"アダプタを登録しました。登録型数=N"`。
+  `N` は今回新たに登録した型数で、全件スキップ・非該当の場合は 0。共通応答の新規フィールドはない。
+- Loader 未登録（Pipeline 無効・Player）では `ok:false, message:"TESTIFY_PIPELINE が無効です"`。
+  ソースなし・パス不正・コンパイル・型列挙・コンストラクタの失敗も `ok:false` とし、
+  `message` にコンパイル診断や内部例外を含む例外原文を返す。
+  注入に失敗した `agent.begin` はそのメッセージを返して新規セッションを開始しない。
+  失敗前の登録は巻き戻さない。
+
+Pipeline の現物 `0.6.0-exp.1` に合わせ、internal API 名を定数に集約して反射呼び出しする。
+戻り値は `HotReloadCompileResult` で、`AssemblyName` に一致するロード済みアセンブリから型を取得する。
+既定の `OutputPath` は実ファイルとして保存されないため使用しない。設計基準の `0.4.0-exp.1` との互換性は未確認。
 
 ## 実機のパスと自律実行
 

@@ -959,3 +959,144 @@ USB 転送の表記は [libusbmuxd の iproxy](https://github.com/libimobiledevi
    理由は T9 の一手ずつの通信では、一つのクライアントが本文を送り終えない間は後続も待つため。
 2. IPv6 LAN 接続を Unity 同梱 Mono でも保証する場合は、OS ごとのサブネット情報取得を別タスクで扱うべき。
    理由は .NET の `PrefixLength` が未実装で、任意のマスクを仮定すると接続元制限を正しく保てないため。
+
+## 2026-09-11 T6 アダプタ注入（Editor 限定・任意）
+
+### 変更内容
+
+`adapters.load {"directory":"DebugOutput/adapters"}` と、`agent.begin` の
+`options.adaptersDirectory` によるセッション生成前の注入を追加した。
+Runtime の `GameAdapterLoader.Loader` に Pipeline 側が `[InitializeOnLoadMethod]` で登録する。
+`AiAdapterInjector` は `#if TESTIFY_PIPELINE && UNITY_EDITOR`、Runtime の追加型は
+`#if UNITY_EDITOR || DEVELOPMENT_BUILD` で囲った。ゲーム用ライブラリの参照は追加していない。
+
+指定ディレクトリ直下の `*.cs` をパス昇順で改行連結し、`UniTestifyAdapters` を基底名として
+Unity.Pipeline のコンパイラへ渡す。生成済みアセンブリから得た `Type[]` を
+`GameAdapterTypeBinder` へ渡し、三つの `IGame*` 契約と公開の引数なしコンストラクタで選別する。
+非抽象・型引数確定済みのクラスだけを構築し、複数契約を実装した型は同じインスタンスを共有する。
+既存の登録先と今回登録した型の完全型名（名前空間を含み、アセンブリ名を含まない）を比較し、重複は構築前にスキップする。
+
+`adapters.load` は `AiCommandDispatcher` の `switch` と `ListOps` に追加し、同期・非同期で共用する。
+成功時は既存の `ok` / `op` / `message` を返し、`message` の登録型数は今回の新規登録数。
+共通応答フィールド、観測本文、成果物 JSON の形式は変更していない。
+Loader 未登録時は指定どおり `ok:false, message:"TESTIFY_PIPELINE が無効です"`。
+コンパイルの失敗結果は `Error` / `ErrorDetails` / `Diagnostics` の原文を連結し、
+ファイル読取・反射・型列挙・コンストラクタの例外は `ToString()` で内部例外ごと `message` に残す。
+
+`agent.begin` は既存の目標・PlayMode 検証後、既存セッションの破棄・新規生成より前に注入する。
+`options.adaptersDirectory` の省略・空文字では呼ばない。失敗時は新規セッションを開始せず、
+既存セッションを破棄しない。登録途中までの変更は巻き戻さない。
+
+### 表の記述と現物の差異・解決
+
+| 項目 | 確認した現物 | 対応 |
+|---|---|---|
+| Pipeline の基準バージョン | 設計書は `0.4.0-exp.1`。利用側の PackageCache は `0.6.0-exp.1` | 手元の実装を読んで合わせた。0.4 の実物は見つからず、公式 registry への取得も DNS 解決に失敗したため、0.4 自体との互換性は未確認と明記 |
+| コンパイラの名前空間・可視性 | `Unity.Pipeline.Compilation.HotReloadCompiler` は internal 型。対象メソッドも internal | public の `CliCommandAttribute` と同じ `Unity.Pipeline` アセンブリから型を取得し、定数化した型名・メソッド名で反射呼び出し。Runtime に Pipeline 依存を持ち込まない |
+| コンパイル引数 | 必須の `sourceCode` / `baseFileName` の後に `assemblyDir=null` / `emitPdb=false` / `documentPath=null` / `interpreterMethods=null` がある | ソースと `UniTestifyAdapters` を渡し、末尾の省略可能引数は `Type.Missing` で API の既定値を使う |
+| 戻り値 | アセンブリ本体や出力パスではなく `HotReloadCompileResult`。`IsSuccess` / `AssemblyName` / `OutputPath` / `Error` / `ErrorDetails` / `Diagnostics` 等のプロパティを持つ | 使用するプロパティ名も定数化。成功時は `AssemblyName` に一致するロード済みアセンブリを `AppDomain.CurrentDomain.GetAssemblies()` から取得 |
+| `OutputPath` | 既定の保存先指定なしではメモリ上にロード済み。`Temp/HotReload/<名前>.dll` は互換用の仮パスで、ファイルを書かない | `Assembly.LoadFrom(OutputPath)` は使用しない |
+| Runtime internal への接続 | `AssemblyInfo.cs` は Tests / Editor だけを friend 指定 | `InternalsVisibleTo("UniTestify.Pipeline")` を追加。Loader・Binder・結果型を internal のまま共有 |
+| `directory` | `AiCommandArguments.directory` がすでに存在する | フィールドを再追加せず流用し、summary を補足 |
+| `GameAdapterRegistry` | コレクションではなく契約ごとの単一プロパティ | 既存の登録窓口を使用。異なる型の後続登録は置き換えとなり、同じ完全型名はスキップ。この仕様を文書化 |
+| Runtime のファイル数 | 表の 4→6 は Loader / Binder の二つを加えた直下の件数。必要な `GameAdapterLoadResult` は未定義 | 一ファイル一主要型を保つため結果型を `Runtime/Adapters/Results/` に配置。構成表を直下 6 / Results 1 に更新 |
+
+読んだ実物は、利用側
+`/Users/masakoha/GitHub/pisuke-root/karakuri/Karakuri-client/Library/PackageCache/com.unity.pipeline@9bb4172c603c/`
+の以下のファイル。利用側ファイルは変更していない。
+
+- `package.json`（`version: 0.6.0-exp.1`）
+- `Runtime/Compilation/HotReloadCompiler.cs`（実シグネチャ、結果型、メモリロード、未保存の出力パス）
+- `Runtime/Compilation/RoslynCompilationService.cs`（Editor ではロード済みアセンブリをコンパイル参照へ含める）
+- `Runtime/Common/CliCommandAttribute.cs` / `Runtime/Unity.Pipeline.asmdef`（公開型の namespace と所属アセンブリ）
+
+### 追加・変更ファイル一覧
+
+新規 C# 5 ファイルにそれぞれ `.cs.meta`、新規フォルダ 3 件に `.meta` を追加した。
+
+| ファイル | 種別 | 内容 |
+|---|---|---|
+| `Runtime/Adapters/GameAdapterLoader.cs` | 追加 | 任意の Loader と失敗応答の共通化 |
+| `Runtime/Adapters/GameAdapterLoader.cs.meta` | 追加 | スクリプト GUID |
+| `Runtime/Adapters/GameAdapterTypeBinder.cs` | 追加 | Type[] から三種の実装を選別・登録 |
+| `Runtime/Adapters/GameAdapterTypeBinder.cs.meta` | 追加 | スクリプト GUID |
+| `Runtime/Adapters/Results.meta` | 追加 | フォルダ GUID |
+| `Runtime/Adapters/Results/GameAdapterLoadResult.cs` | 追加 | Pipeline に依存しない成否・メッセージ |
+| `Runtime/Adapters/Results/GameAdapterLoadResult.cs.meta` | 追加 | スクリプト GUID |
+| `Pipeline/Adapters.meta` | 追加 | フォルダ GUID |
+| `Pipeline/Adapters/AiAdapterInjector.cs` | 追加 | 初期化時の Loader 登録、外部ソースの読取・コンパイル |
+| `Pipeline/Adapters/AiAdapterInjector.cs.meta` | 追加 | スクリプト GUID |
+| `Runtime/Agent/AgentOptions.cs` | 変更 | `adaptersDirectory` |
+| `Runtime/Agent/AgentSessionCommands.cs` | 変更 | セッション生成前の注入と失敗伝播 |
+| `Runtime/Core/AssemblyInfo.cs` | 変更 | Pipeline への internal 公開 |
+| `Runtime/Gateway/AiCommandArguments.cs` | 変更 | 既存 `directory` の用途を追記 |
+| `Runtime/Gateway/AiCommandDispatcher.cs` | 変更 | `adapters.load` の switch / ListOps と応答変換 |
+| `Tests/EditMode/Runtime/Adapters.meta` | 追加 | フォルダ GUID |
+| `Tests/EditMode/Runtime/Adapters/GameAdapterTypeBinderTest.cs` | 追加 | 型登録の純ロジック検証 |
+| `Tests/EditMode/Runtime/Adapters/GameAdapterTypeBinderTest.cs.meta` | 追加 | スクリプト GUID |
+| `Tests/EditMode/Runtime/Gateway/AiCommandDispatcherTest.cs` | 変更 | op 発見・未導入・引数転送・例外・非同期経路 |
+| `docs/getting-started.md` | 変更 | 注入用ソース例とセッション開始手順 |
+| `docs/ops-reference.md` | 変更 | op・引数・応答・注入制約 |
+| `docs/architecture.md` | 変更 | 注入経路と構成表の実数 |
+| `docs/design/design-unilab-ai-12-ai-gateway.md` | 変更 | 共通入口の T6 契約と API の現物差異 |
+| `docs/implementation.md` | 変更 | 本記録 |
+
+### 追加した op・引数・応答
+
+- op: `adapters.load`
+- 引数: 同 op の `directory`（既存の共通引数を流用）、`agent.begin` の `options.adaptersDirectory`
+- 応答: 新規フィールドなし。既存の `ok` / `op` / `message` を使用
+- 成功 message: `アダプタを登録しました。登録型数=N`
+- Loader 未登録 message: `TESTIFY_PIPELINE が無効です`
+- 内部結果型: `GameAdapterLoadResult.Ok` / `Message`（外部応答へ新しいフィールドは追加しない）
+
+### 追加したテスト名
+
+新規 10 メソッド、TestCase 展開で 11 ケース。既存の op 一覧テストにも `adapters.load` の期待値を追加した。
+
+| ファイル | テスト名 |
+|---|---|
+| `GameAdapterTypeBinderTest.cs` | `RegistersAllThreeAdapterKinds` |
+| 同上 | `RegistersOneInstanceForMultipleContracts` |
+| 同上 | `SkipsDuplicateTypesWithinAndAcrossCalls` |
+| 同上 | `PreservesPreviouslyRegisteredInstance` |
+| 同上 | `IgnoresNonApplicableTypes` |
+| 同上 | `PreservesConstructorException` |
+| `AiCommandDispatcherTest.cs` | `AdaptersLoadWithoutPipelineReturnsMessage` |
+| 同上 | `AdaptersLoadForwardsDirectoryAndResult`（true / false） |
+| 同上 | `AdaptersLoadPreservesExceptionInMessage` |
+| 同上 | `AsyncAdaptersLoadUsesRegisteredLoader` |
+
+### 静的確認
+
+- 関連型の定義・namespace・using、Pipeline の実ソースと所属 asmdef、internal の公開範囲を照合した。
+- 注入の型探索と確保は注入要求時だけ。毎フレームの Update・オーバーレイへ変更していない。
+- 新規 C# と `.meta` の対応、追加フォルダ `.meta`、GUID 重複なしを照合した。
+- 構成表と実数に不一致なし。`Runtime/Adapters/` は 4→6、`Results/` は 1、
+  `Pipeline/Adapters/` は 1、`Tests/EditMode/Runtime/Adapters/` は 1。
+  EditMode 全体は 33→34（Runtime 33 / Editor 1）。直下 C# が上限 10 を超えるフォルダはない。
+- **Unity 起動・インポート操作・コンパイル・ビルド・テスト実行は行っていない。Git 操作も行っていない。**
+
+### 未実行の確認事項・依頼者の受け入れ確認
+
+1. Pipeline のある利用側でコンパイルし、上記 EditMode テストと既存テストを実行する。
+   `TestProject/` の既定 manifest には Pipeline が無いため、Injector の確認は Pipeline 導入済みの Editor で行う。
+   0.4 を利用する場合は、その実ソースの型名・可視性・シグネチャ・結果形式の互換性も確認する。
+2. `DebugOutput/adapters/*.cs` に引数なし構築可能な `IGameBusyProvider` 実装を置く。
+   getting-started の例を使い、PlayMode で
+   `agent.begin {"goal":{"freePlay":true},"options":{"adaptersDirectory":"DebugOutput/adapters"}}` を実行し、
+   最初の観測と `agent.observe` に `agent: busy=adapter-injected` が出ることを確認する。実機確認が必要。
+3. 単独の `adapters.load`、リポジトリ外の絶対パス、namespace 内の using を持つ複数ソースの連結、
+   三種の登録と複数契約の共有、同じ型名の再注入によるスキップを確認する。
+4. 未導入・Player の `TESTIFY_PIPELINE が無効です`、空・存在しない directory、ソースなし、構文エラー、
+   コンストラクタ例外について、`ok:false` と `message` の原文を確認する。
+   注入失敗時に新規セッションを開始しないこと、`adaptersDirectory` 省略時の開始が従来どおりであることも確認する。
+5. 通常のドメインリロード後に Loader が再登録されることと、ドメインリロード無効時の重複スキップを確認する。
+   確認後は PlayMode を停止する。
+
+### 提案（このランでは実装しない）
+
+1. Pipeline 更新時は internal コンパイラの契約確認を独立した検証項目にすべき。
+   理由は設計時点と現物でバージョン・名前空間・可視性が異なり、通常の C# コンパイルでは反射先の破損を検出できないため。
+2. アダプタの差し替えや破棄が必要になったら、登録の所有権と寿命を別タスクで決めるべき。
+   理由は既存 Registry が単一プロパティで、注入型のアンロード・Dispose・失敗時の巻き戻しを扱わないため。
