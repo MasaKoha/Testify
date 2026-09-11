@@ -102,6 +102,7 @@ namespace UniTestify
             return needsSettledFrame ? DefaultSettleFrames : 0;
         }
 
+        /// <summary>行動と待機だけのステップを同じアンカー判定へ渡します。</summary>
         internal static InputReplayAnchor CreateAnchor(UiScenarioStep step)
         {
             var waitForScene = step.waitForScene;
@@ -117,6 +118,14 @@ namespace UniTestify
                 waitForFocus = step.waitForFocus,
                 waitForScene = waitForScene,
             };
+        }
+
+        /// <summary>既存 JSON の省略値も対話操作と同じ待機上限へ揃えます。</summary>
+        internal static float GetTimeoutSeconds(UiScenarioStep step)
+        {
+            var timeoutSeconds = step.timeoutSeconds <= 0f ? UiScenarioStep.DefaultTimeoutSeconds : step.timeoutSeconds;
+            AiCommandArguments.ValidateDuration(timeoutSeconds, nameof(step.timeoutSeconds), true);
+            return timeoutSeconds;
         }
 
         internal static bool EndsWithPath(string path, string target)

@@ -11,6 +11,9 @@ namespace UniTestify
     {
         private static AgentSession _currentSession;
 
+        /// <summary>セッション不在の要求でアンカー待機を始めないための状態です。</summary>
+        internal static bool HasSession => _currentSession != null;
+
         /// <summary>目標に期待値が無いときの拒否メッセージ。呼び出し側がキー違いに気づけるよう正しい形を示す。</summary>
         public const string EmptyGoalMessage = "目標 JSON に期待値がありません。{\"goal\":[{\"kind\":\"textVisible\",\"value\":\"...\"}]} の形で 1 件以上、または {\"freePlay\":true} を指定してください。";
 
@@ -67,8 +70,31 @@ namespace UniTestify
                 return ToJson(false, string.Empty, "セッションが開始されていません。", string.Empty, string.Empty);
             }
 
-            var action = string.IsNullOrEmpty(actionJson) ? new AgentAction() : JsonUtility.FromJson<AgentAction>(actionJson);
+            var action = new AgentAction();
+            if (!string.IsNullOrEmpty(actionJson))
+            {
+                JsonUtility.FromJsonOverwrite(actionJson, action);
+            }
+
+            AiCommandArguments.ValidateDuration(action.timeoutSeconds, nameof(action.timeoutSeconds), true);
+            if (AgentActionWait.HasConditions(action) && !UiInputLocator.IsAnchorSatisfied(AgentActionWait.CreateAnchor(action)))
+            {
+                return RejectAction(action, AgentActionWait.SynchronousWaitRequiredMessage);
+            }
+
             return ToJson(true, _currentSession.SessionId, "行動を処理しました。", _currentSession.Act(action), _currentSession.OutputDirectory);
+        }
+
+        /// <summary>未成立の待機要求を入力として送らず、失敗応答と履歴へ同じ理由を残します。</summary>
+        internal static string RejectAction(AgentAction action, string message)
+        {
+            if (_currentSession == null)
+            {
+                return ToJson(false, string.Empty, message, string.Empty, string.Empty);
+            }
+
+            return ToJson(false, _currentSession.SessionId, message,
+                _currentSession.RejectAction(action, message), _currentSession.OutputDirectory);
         }
 
         /// <summary>

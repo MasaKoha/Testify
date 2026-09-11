@@ -75,6 +75,52 @@ namespace UniTestify.Tests
             var scenario = JsonUtility.FromJson<UiScenario>(File.ReadAllText(_artifacts.ExportAsScenario("unchanged")));
             Assert.That(scenario.steps[0].comment, Is.Null.Or.Empty);
         }
+
+        /// <summary>待機だけの手も入力付きの手も、同名のフィールドで再生条件を保存します。</summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void ExportPreservesWaitConditionsAndTimeout(bool hasInput)
+        {
+            var action = CreateWaitingAction();
+            action.submit = hasInput ? "Start" : string.Empty;
+            _artifacts.RecordScenarioStep(action);
+            var scenario = JsonUtility.FromJson<UiScenario>(File.ReadAllText(_artifacts.ExportAsScenario("wait")));
+            Assert.That(scenario.steps, Has.Length.EqualTo(1));
+            var step = scenario.steps[0];
+            Assert.That(step.submit, Is.EqualTo(action.submit));
+            Assert.That(step.waitForText, Is.EqualTo(action.waitForText));
+            Assert.That(step.waitForObject, Is.EqualTo(action.waitForObject));
+            Assert.That(step.waitForFocus, Is.EqualTo(action.waitForFocus));
+            Assert.That(step.waitForScene, Is.EqualTo(action.waitForScene));
+            Assert.That(step.timeoutSeconds, Is.EqualTo(action.timeoutSeconds));
+        }
+
+        /// <summary>タイムアウトで拒否した要求にも、待ち条件と上限を履歴へ残します。</summary>
+        [TestCase("acted")]
+        [TestCase("rejected")]
+        public void ActionLogPreservesWaitConditionsAndTimeout(string status)
+        {
+            var action = CreateWaitingAction();
+            _artifacts.AppendActionLog(action, string.Empty, "wait", string.Empty, status, "待機結果", string.Empty);
+            var entry = JsonUtility.FromJson<AgentActionLogEntry>(File.ReadAllText(Path.Combine(_outputDirectory, "actions.jsonl")));
+            Assert.That(entry.status, Is.EqualTo(status));
+            Assert.That(entry.waitForText, Is.EqualTo(action.waitForText));
+            Assert.That(entry.waitForObject, Is.EqualTo(action.waitForObject));
+            Assert.That(entry.waitForFocus, Is.EqualTo(action.waitForFocus));
+            Assert.That(entry.waitForScene, Is.EqualTo(action.waitForScene));
+            Assert.That(entry.timeoutSeconds, Is.EqualTo(action.timeoutSeconds));
+            Assert.That(_artifacts.StepCount, Is.Zero);
+        }
+
+        private static AgentAction CreateWaitingAction()
+        {
+            const float TimeoutSeconds = 90f;
+            return new AgentAction
+            {
+                waitForText = "準備完了", waitForObject = "Screen/Root", waitForFocus = "Start",
+                waitForScene = "Game", timeoutSeconds = TimeoutSeconds,
+            };
+        }
     }
 }
 #endif

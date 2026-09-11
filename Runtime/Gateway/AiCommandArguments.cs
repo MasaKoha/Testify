@@ -42,6 +42,12 @@ namespace UniTestify
         public bool compact = true;
         /// <summary>スナップショット保存を指定します。</summary>
         public bool save;
+        /// <summary>階層テキストの表示深度です。ルートは 0 です。</summary>
+        public int depth = SceneHierarchyDumpText.DefaultDepth;
+        /// <summary>階層テキストの全シーン合計の最大ノード数です。</summary>
+        public int maxNodes = SceneHierarchyDumpText.DefaultMaxNodes;
+        /// <summary>階層テキストに残す GameObject 名の部分一致条件です。</summary>
+        public string filter;
         /// <summary>成果物名です。</summary>
         public string name;
         /// <summary>実行するシナリオのプロジェクト相対または絶対パスです。</summary>

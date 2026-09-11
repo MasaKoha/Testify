@@ -19,6 +19,12 @@ namespace UniTestify.Pipeline
         public bool compact;
         /// <summary>スナップショットの保存を指定します。</summary>
         public bool save;
+        /// <summary>シーン階層テキストの表示深度です。</summary>
+        public int depth = SceneHierarchyDumpText.DefaultDepth;
+        /// <summary>シーン階層テキストに含める最大ノード数です。</summary>
+        public int maxNodes = SceneHierarchyDumpText.DefaultMaxNodes;
+        /// <summary>シーン階層に適用する GameObject 名の部分一致条件です。</summary>
+        public string filter;
     }
 }
 #endif

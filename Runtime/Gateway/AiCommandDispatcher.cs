@@ -68,7 +68,7 @@ namespace UniTestify
         /// <summary>登録済み操作名の一覧を返します。</summary>
         public static string[] ListOps()
         {
-            return new[] { "ping", "ops", "agent.begin", "agent.observe", "agent.find", "agent.act", "agent.goal", "agent.end", "agent.export", "capture", "snapshot", "console", "scenario.run", "scenario.status" };
+            return new[] { "ping", "ops", "agent.begin", "agent.observe", "agent.find", "agent.act", "agent.goal", "agent.end", "agent.export", "capture", "snapshot", "scene.dump", "console", "scenario.run", "scenario.status" };
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -161,6 +161,7 @@ namespace UniTestify
                 case "scenario.status": return AiScenarioExecution.ReadStatus(_lastScenarioResultFilePath, operation);
                 case "capture": return Capture(arguments);
                 case "snapshot": return Snapshot(arguments);
+                case "scene.dump": return DumpScene(arguments);
                 case "console": return ReadConsole(arguments);
                 default: throw new InvalidOperationException("登録済み操作の実装がありません。");
             }
@@ -240,6 +241,12 @@ namespace UniTestify
             AiCommandResponse response = null;
             foreach (var action in context.GetActions())
             {
+                if (AgentActionWait.HasConditions(action) && !UiInputLocator.IsAnchorSatisfied(AgentActionWait.CreateAnchor(action)))
+                {
+                    return ConvertResult(context.Operation, AgentSessionCommands.RejectAction(action,
+                        AgentActionWait.SynchronousWaitRequiredMessage));
+                }
+
                 var previousStepCount = AgentSessionCommands.RecordedStepCount;
                 var before = capture();
                 response = executeAction(action);
@@ -283,6 +290,35 @@ namespace UniTestify
         private static System.Collections.Generic.IEnumerator<object> ExecuteActionAsync(
             AiCommandContext context, AgentAction action, Action<AiCommandResponse> completed)
         {
+            if (!AgentSessionCommands.HasSession)
+            {
+                completed(ConvertResult(context.Operation, AgentSessionCommands.Act(JsonUtility.ToJson(action))));
+                yield break;
+            }
+
+            var anchorWaitedMilliseconds = 0;
+            if (AgentActionWait.HasConditions(action))
+            {
+                var anchorWait = new AgentActionWait(action);
+                using (var execution = anchorWait.WaitAsync())
+                {
+                    while (execution.MoveNext())
+                    {
+                        yield return execution.Current;
+                    }
+                }
+
+                anchorWaitedMilliseconds = anchorWait.WaitedMilliseconds;
+                if (!anchorWait.IsSatisfied)
+                {
+                    var failure = ConvertResult(context.Operation, AgentSessionCommands.RejectAction(action,
+                        $"待機条件がタイムアウトしました。 timeoutSeconds={action.timeoutSeconds}"));
+                    failure.waitedMs = anchorWaitedMilliseconds;
+                    completed(failure);
+                    yield break;
+                }
+            }
+
             var targetSpecification = GetReadyTarget(action);
             var stopwatch = Stopwatch.StartNew();
             // 対象を持たない操作（press / move 等）は待つものが無いので準備済み扱いにする
@@ -296,7 +332,8 @@ namespace UniTestify
                 }
             }
 
-            var waitedMilliseconds = string.IsNullOrEmpty(targetSpecification) ? 0 : (int)stopwatch.ElapsedMilliseconds;
+            var waitedMilliseconds = anchorWaitedMilliseconds
+                + (string.IsNullOrEmpty(targetSpecification) ? 0 : (int)stopwatch.ElapsedMilliseconds);
             using (var settle = new AiSettleWait(context.Arguments))
             {
                 var previousStepCount = AgentSessionCommands.RecordedStepCount;
@@ -307,6 +344,15 @@ namespace UniTestify
                 response.waitedMs = waitedMilliseconds;
                 if (!response.ok || (!string.IsNullOrEmpty(targetSpecification) && !ready))
                 {
+                    RecordActExpectation(response, action, before, previousStepCount);
+                    completed(response);
+                    yield break;
+                }
+
+                if (AgentActionExecutor.GetActionKind(action) == "wait")
+                {
+                    response.message = "待機条件が成立しました。";
+                    response.settled = true;
                     RecordActExpectation(response, action, before, previousStepCount);
                     completed(response);
                     yield break;
@@ -435,6 +481,20 @@ namespace UniTestify
                 op = "snapshot",
                 text = arguments.compact ? UiSnapshot.ToCompactText(snapshot, "all") : JsonUtility.ToJson(snapshot, true),
                 path = arguments.save ? UiSnapshot.Save(snapshot) : string.Empty,
+            };
+        }
+
+        private static AiCommandResponse DumpScene(AiCommandArguments arguments)
+        {
+            SceneHierarchyDumpText.ValidateLimits(arguments.depth, arguments.maxNodes);
+            // perf: 階層の全収集と整形は scene.dump 要求時だけ行う。
+            var dump = SceneHierarchyDumper.Dump();
+            return new AiCommandResponse
+            {
+                ok = true,
+                op = "scene.dump",
+                text = SceneHierarchyDumpText.Format(dump, arguments.depth, arguments.maxNodes, arguments.filter),
+                path = arguments.save ? SceneHierarchyDumper.Save(dump) : string.Empty,
             };
         }
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Reflection;
 using TMPro;
 using UnityEngine;
@@ -17,6 +18,8 @@ namespace UniTestify
         private const int WorldCornerCount = 4;
         private const int TextPreviewMaxLength = 40;
         private const int RootParentIndex = -1;
+        private const string SceneDirectoryName = "scene";
+        private const string FileNameTimestampFormat = "yyyyMMdd-HHmmss-fff";
 
         /// <summary>
         /// ロード済み全シーンの階層をダンプする。
@@ -55,6 +58,17 @@ namespace UniTestify
                 capturedAt = DateTime.Now.ToString("o", CultureInfo.InvariantCulture),
                 scenes = scenes.ToArray(),
             };
+        }
+
+        /// <summary>応答テキストの絞り込みにかかわらず、収集した階層全体を JSON の証拠として保存します。</summary>
+        public static string Save(SceneHierarchyDump dump)
+        {
+            var outputDirectory = Path.GetFullPath(Path.Combine(DebugOutputPath.DirectoryPath, SceneDirectoryName));
+            Directory.CreateDirectory(outputDirectory);
+            var timestamp = DateTime.Now.ToString(FileNameTimestampFormat, CultureInfo.InvariantCulture);
+            var path = Path.Combine(outputDirectory, $"hierarchy-{timestamp}.json");
+            File.WriteAllText(path, JsonUtility.ToJson(dump, true));
+            return path;
         }
 
         private static void AppendNodeRecursive(Transform transform, int parentIndex, string path, List<SceneHierarchyNode> nodes, ref int nextNodeIndex)

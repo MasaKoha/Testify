@@ -35,15 +35,15 @@ namespace UniTestify
         public string view = string.Empty;
         /// <summary>輝度の標準偏差が閾値未満の画像です。同期経路では false です。</summary>
         public bool blank;
-        /// <summary>非同期経路で落ち着き待ち、または撮影完了を確認した場合に true です。</summary>
+        /// <summary>非同期経路で落ち着き待ち・撮影完了・待機だけの要求の成立を確認した場合に true です。</summary>
         public bool settled;
-        /// <summary>非同期の最終行動で対象が操作可能になった場合に true です。</summary>
+        /// <summary>非同期の最終行動でアンカーと対象の準備が成立した場合に true です。</summary>
         public bool ready;
         /// <summary>事後条件がすべて成立したかを示します。未指定時は true です。</summary>
         public bool expectOk = true;
         /// <summary>goalFailures と同じ一行形式の事後条件未達理由です。</summary>
         public string[] expectFailures = Array.Empty<string>();
-        /// <summary>最終行動の準備待ちに費やした実時間のミリ秒です。</summary>
+        /// <summary>最終行動のアンカー待ちと対象の準備待ちに費やした実時間の合計ミリ秒です。</summary>
         public int waitedMs;
         /// <summary>要求の実行開始から応答完成までの実時間のミリ秒です。</summary>
         public int elapsedMs;
