@@ -15,6 +15,7 @@ namespace UniTestify
     /// </summary>
     internal sealed class ScenarioInputExecutor
     {
+        /// <summary>送出できない入力を失敗として記録し、未実行のステップが成功扱いになるのを防ぎます。</summary>
         internal IEnumerator ExecuteInputCoroutine(UiScenarioStep step, Action<string, string, string, string, string> addFailure)
         {
             if (!string.IsNullOrEmpty(step.scrollTo))
@@ -95,6 +96,14 @@ namespace UniTestify
                 yield break;
             }
 
+            if (HasPointerInputAction(step) && !InputInjector.IsPointerInputAvailable)
+            {
+                addFailure("input", GetInputKind(step), string.Empty,
+                    "Game View が非フォーカスのため、ポインタ入力は UI に届かず、入力を送信しませんでした。Unity を前面にして Game View にフォーカスを合わせてから再実行してください。",
+                    string.Empty);
+                yield break;
+            }
+
             if (!string.IsNullOrEmpty(step.pointerMove))
             {
                 InputInjector.PointerMove(ResolveScreenPosition(step.pointerMove, step.x, step.y));
@@ -147,6 +156,7 @@ namespace UniTestify
             }
         }
 
+        /// <summary>入力対応可否と操作前後の変化を確認する必要があるステップを区別します。</summary>
         internal static bool IsInputStep(UiScenarioStep step)
         {
             return !string.IsNullOrEmpty(step.scrollTo)
@@ -156,7 +166,12 @@ namespace UniTestify
                 || !string.IsNullOrEmpty(step.stick)
                 || !string.IsNullOrEmpty(step.key)
                 || !string.IsNullOrEmpty(step.text)
-                || !string.IsNullOrEmpty(step.pointerMove)
+                || HasPointerInputAction(step);
+        }
+
+        private static bool HasPointerInputAction(UiScenarioStep step)
+        {
+            return !string.IsNullOrEmpty(step.pointerMove)
                 || !string.IsNullOrEmpty(step.click)
                 || !string.IsNullOrEmpty(step.drag)
                 || !string.IsNullOrEmpty(step.scroll)

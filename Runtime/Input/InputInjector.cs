@@ -46,6 +46,22 @@ namespace UniTestify
         }
 
         /// <summary>
+        /// Editor の既定の Input System 設定では Game View 非フォーカス時にポインタ入力の UI への伝播が捨てられるため、
+        /// 送出前に到達可否を確認します。実機ではこの Editor 固有の制約がないため常に true を返します。
+        /// </summary>
+        public static bool IsPointerInputAvailable
+        {
+            get
+            {
+#if UNITY_EDITOR
+                return Application.isFocused;
+#else
+                return true;
+#endif
+            }
+        }
+
+        /// <summary>
         /// 単打を次フレーム解放にし、wasPressedThisFrame / wasReleasedThisFrame の両方を自然に通すためのボタン入力です。
         /// </summary>
         public static void Press(GamepadButton button)

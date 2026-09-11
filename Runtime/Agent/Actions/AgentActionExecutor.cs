@@ -99,6 +99,11 @@ namespace UniTestify
                 return "text を開始しました。";
             }
 
+            if (HasPointerInputAction(action) && !InputInjector.IsPointerInputAvailable)
+            {
+                return "Game View が非フォーカスのため、ポインタ入力は UI に届かず、入力を送信しませんでした。Unity を前面にして Game View にフォーカスを合わせてから再実行してください。";
+            }
+
             if (!string.IsNullOrEmpty(action.pointerMove))
             {
                 InputInjector.PointerMove(ResolveScreenPosition(action.pointerMove, action.x, action.y));
@@ -179,13 +184,18 @@ namespace UniTestify
                 || !string.IsNullOrEmpty(action.stick)
                 || !string.IsNullOrEmpty(action.key)
                 || !string.IsNullOrEmpty(action.text)
-                || !string.IsNullOrEmpty(action.pointerMove)
+                || HasPointerInputAction(action));
+        }
+
+        private static bool HasPointerInputAction(AgentAction action)
+        {
+            return !string.IsNullOrEmpty(action.pointerMove)
                 || !string.IsNullOrEmpty(action.click)
                 || !string.IsNullOrEmpty(action.drag)
                 || !string.IsNullOrEmpty(action.scroll)
                 || !string.IsNullOrEmpty(action.tap)
                 || !string.IsNullOrEmpty(action.swipe)
-                || !string.IsNullOrEmpty(action.pinch));
+                || !string.IsNullOrEmpty(action.pinch);
         }
 
         /// <summary>複数指定時も既存の優先順位で行動種別を確定します。</summary>
