@@ -1,7 +1,7 @@
 # op リファレンス
 
-Runtime の op は `AiCommandDispatcher` が実装し、メールボックス（`req-*.json`）と Unity 公式 CLI（`unity command ai_*`）の両方から同じ意味で呼べる。
-**メールボックス経路は非同期**で、操作後の落ち着き待ち・撮影のファイル生成待ち・シナリオの完了待ちを済ませてから応答する。CLI 経路は同期で、要求した時点の結果を返す。
+Runtime の op は `AiCommandDispatcher` が実装し、メールボックス（`req-*.json`）、HTTP（`POST /op`）、Unity 公式 CLI（`unity command ai_*`）から同じ意味で呼べる。
+**メールボックスと HTTP 経路は非同期**で、操作後の落ち着き待ち・撮影のファイル生成待ち・シナリオの完了待ちを済ませてから応答する。CLI 経路は同期で、要求した時点の結果を返す。
 
 Play 停止中も使う [Editor メールボックス](#editor-メールボックス) は `EditorControlMailbox` が処理する独立した入口。
 
@@ -30,6 +30,80 @@ Play 停止中も使う [Editor メールボックス](#editor-メールボッ�
 | `view` | 今回フォーカスを適用した `game` / `simulator`。未指定・適用不能時は空文字列 |
 | `expectOk` / `expectFailures` | `expect` の判定結果と未達の理由 |
 | `status` / `verdict` / `failedSteps` / `warningCount` | シナリオ実行の状態と合否 |
+
+## HTTP 入口
+
+`AiHttpServer` が Editor の Play 中または Development Build で `http://+:<port>/` を待ち受ける。
+新しい op はなく、既存の `AiCommandRequest` / `AiCommandResponse` をそのまま使う。
+拡張計画表の `AiMailboxRequest` に相当する実在の型は `AiCommandRequest`。
+
+```http
+POST /op HTTP/1.1
+Host: 127.0.0.1:7910
+Authorization: Bearer <token>
+Content-Type: application/json; charset=utf-8
+
+{"op":"agent.observe","args":"{}"}
+```
+
+応答の Content-Type は `application/json; charset=utf-8`。本文は上記の共通応答 JSON 全体で、
+観測は `text` に入る。外側の要求 JSON を検証後、メインスレッドで `ExecuteAsync` を一件ずつ実行する。
+`args` の省略・空文字は従来どおりディスパッチャが解決し、不正な引数や未知 op は既存の失敗応答になる。
+
+| HTTP ステータス | 条件 |
+|---|---|
+| `200` | ディスパッチャの応答。op の成否は `ok` で判定する |
+| `400` | 本文を要求の JSON オブジェクトとして復元できない |
+| `401` | `Authorization: Bearer <token>` が未指定または不一致 |
+| `403` | 接続元が許可対象外（認証より先に判定） |
+| `404` | `/op` 以外のパス |
+| `405` | `/op` に対する POST 以外のメソッド |
+
+入口で生成するエラーも `AiCommandResponse` の `ok:false` / `error` を返す。
+`IPAddress.IsLoopback`（IPv4 射影 IPv6 は正規化）を既定の許可条件とする。
+`httpAllowLan:true` の場合だけ、稼働中の非ループバック・非トンネル・非 PPP インターフェースと
+同じサブネットからの接続も許可する。プライベート IP というだけでは許可しない。
+IPv4 は `IPv4Mask`、IPv6 は提供される環境で `PrefixLength` を使う。
+Unity 同梱 Mono などで IPv6 のプレフィックス長を取得できない場合、その IPv6 LAN 接続は拒否する。
+その環境の Wi-Fi 接続は IPv4 アドレスを指定する。IPv6 ループバックはこの制約を受けない。
+
+### 起動設定と接続情報
+
+`AfterSceneLoad` で `Resources/UniTestifySettings.asset` の以下の値を読み、
+`DebugOutputPath.DirectoryPath/http.enabled` があれば JSON の指定キーだけを上書きする。
+起動後のファイル変更は次回起動から反映する。空のマーカーファイルではなく JSON を置く。
+
+```json
+{"httpEnabled":true,"httpPort":7910,"httpToken":"replace-with-your-token","httpAllowLan":false}
+```
+
+| キー | 既定値 | 意味 |
+|---|---|---|
+| `httpEnabled` | `false` | HTTP 入口を起動する。外部 JSON の `false` でビルド設定を無効にできる |
+| `httpPort` | `7910` | 0～65535 の整数。0 は起動時に空きポートを自動割り当て |
+| `httpToken` | 空文字 | 空なら起動ごとに生成。指定する場合は空白を含まない ASCII 可視文字 |
+| `httpAllowLan` | `false` | 同一 LAN の接続元も許可する。Bearer 認証は引き続き必須 |
+
+壊れた JSON・型違い・範囲外のポートはログを出して起動を中止する。
+待受成功後に実ポートと実効トークンを `DebugOutputPath.DirectoryPath/http.port.json` へ書く:
+
+```json
+{"port":7910,"token":"<この起動のトークン>"}
+```
+
+設定アセット自体は変更しない。前回の接続情報は起動時に削除し、正常停止時にも削除する。
+`DebugOutputPath` の場所は Editor でプロジェクト直下、実機で `persistentDataPath` 配下。
+
+### クライアント
+
+`ai_client.py --transport file|http` の既定値は `file`。`http` では `--url http://HOST:PORT` と
+環境変数 `TESTIFY_HTTP_TOKEN` を指定する。URL に `/op` を付けず、クライアントが付加する。
+HTTP ではメールボックスの探索・ファイル生成を行わない。`--timeout` は両 transport 共通（既定 60 秒）。
+タイムアウトや切断後も受理済みの op が実行される場合がある。
+標準出力は既存どおり **1 行目が `text` を除いたメタデータ JSON、以降が観測本文**。
+終了コードは `ok:true` が 0、失敗が 1。HTTP エラーも本文の共通応答を同じ形式で出力する。
+`agent.observe` には従来どおり事前の `agent.begin` が必要。
+実機の接続例は [接続手順](getting-started.md#6-実機へ-http-で一手ずつ接続する) を参照。
 
 ## 一覧
 

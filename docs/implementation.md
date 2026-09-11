@@ -806,3 +806,156 @@ T1・T2・T3・T4・T7 の再実装、T9 などの先行実装はない。
 1. シナリオ本体の `outputDirectory` の相対指定も、別タスクで環境別の解決へ揃えるべき。
    理由は現状の `UiScenarioStepReader` が明示値をそのまま返し、実機移行時にカレントディレクトリ依存が残るため。
    今回は表に指定された撮影 `directory` と `scenario.run` の `path` のみ共通化した。
+
+## 2026-09-11: T9 ネットワーク入口（実機との対話操作）
+
+### 実装内容
+
+T9 のみ実装した。指定済みの `feature/http-gateway` を切り替えず、Git 操作は行っていない。
+T1・T2・T3・T4・T5・T7 は再実装せず、T5 の設定アセットと出力先分岐を再利用した。
+
+- `Runtime/Gateway/Http/` に `AiHttpServer`、`AiHttpListener`、`AiHttpExchange`、
+  `AiHttpRequestParser`、`AiHttpConfiguration` を追加した。
+  MonoBehaviour は起動・メインスレッドへの接続・停止を担当し、HTTP 入出力と純ロジックを分離した。
+- `AfterSceneLoad` で `Resources/UniTestifySettings.asset` を読み、`DebugOutputPath.DirectoryPath/http.enabled`
+  の同名キーによる部分上書き後、有効な場合だけ起動する。
+  設定フィールドは `httpEnabled=false` / `httpPort=7910` / `httpToken=""` / `httpAllowLan=false`。
+  ポート 0 は TCP ソケットで空きを取得して `HttpListener` へ渡し、競合時は最大 5 回まで再選択する。
+  空トークンは起動ごとに生成し、待受成功後だけ実ポート・トークンを `http.port.json` へ公開する。
+  元のアセットは変更せず、前回の接続情報を起動前に、今回の情報を正常停止時に削除する。
+- `HttpListener` の prefix は `http://+:<port>/`、操作用パスは `POST /op`。
+  ループバック以外は既定で 403、Bearer 不一致は 401。LAN 許可時も実インターフェースの
+  サブネットへ限定し、トンネル・PPP は除外する。IPv4 射影 IPv6 は正規化する。
+- `Task.Run` から `GetContextAsync`・本文読取・応答書込を行う。
+  キューの要求を `Update` で取り出し、既存の `AiCommandDispatcher.ExecuteAsync` を一件ずつ開始する。
+  ワーカーは完了までコンテキストを保持し、応答を書き終えてから次を受け付ける。
+  コルーチン停止時は `Dispose` により既存のシーン監視の `finally` を通し、
+  待機解除と `HttpListener.Close` によりソケットも解放する。通信切断時の I/O エラーでは次の受付を維持する。
+  待機フレームの処理は状態・キュー確認だけで、JSON 変換やネットワーク列挙は要求時に限定した。
+- クライアントへ `--transport file|http` と `--url` を追加した。既定の file と出力形式は維持する。
+  HTTP の Bearer トークンは環境変数 `TESTIFY_HTTP_TOKEN` で渡す。
+  HTTP でも二重 JSON の `args` を送信し、共通応答の `text` を本文として分離する。
+  HTTP 経路ではメールボックス探索・ファイル生成を行わず、環境のプロキシとリダイレクトを経由しない。
+- **追加 op / op 引数 / 共通応答フィールドはない。** Dispatcher の switch / `ListOps` と Pipeline は変更していない。
+  新規の起動設定 JSON は上記 4 キー、接続情報 JSON は `port` / `token`。
+  HTTP ステータスは 200（op の成否は `ok`）、400（本文）、401（認証）、403（接続元）、404（パス）、405（メソッド）。
+  入口で生成する失敗も既存 `AiCommandResponse` の `ok:false` / `error` を使う。
+
+### 表の記述と実物の相違・解決
+
+| 項目 | 実物 | 対応 |
+|---|---|---|
+| `AiMailboxRequest` の再利用 | その型はなく、`AiMailboxFiles.ReadRequest` は `AiCommandRequest` を返す | `op` / JSON 文字列の `args` を持つ既存型を直接再利用した。別の要求型や op は追加していない |
+| `ExecuteAsync` | `Task` ではなく `IEnumerator` と完了コールバック | メインスレッドで `StartCoroutine`。ワーカーへは `TaskCompletionSource<string>` で応答を渡した |
+| クライアントの「応答 JSON を標準出力」 | 既存出力は `text` を除いたメタデータ一行＋観測本文 | HTTP 本文は共通応答 JSON 全体、標準出力は既存形式に揃えた |
+| 受け入れ例の `agent.observe` | `AgentSessionCommands.Observe` は開始済みセッションが必要 | op の動作を変更せず、接続手順と受け入れ確認へ `agent.begin` を前提として明記した |
+| LAN のサブネット取得 | Unity 6000.4.6f1 同梱 Mono の `UnicastIPAddressInformation.PrefixLength` は `NotImplementedException` を投げる | IPv4 は `IPv4Mask` から長さを算出する。IPv6 は長さを取得できる場合だけ照合し、取得不能なら LAN 接続を拒否する。該当環境では IPv4 接続を使う制約を明記した。IPv6 ループバックは許可する |
+| iOS の LAN 許可時にプライバシー確認が出る | Apple の仕様では TCP の待受・受信だけは許可を要求しない | LAN 利用のプライバシー対応を文書化し、確認が必ず出るとは記載しない。表示を強制する追加の探索・送信は実装していない |
+| 拡張計画の全文 | リポジトリ内にはない | 提供された T9 表を仕様とし、既存の設計書12へ HTTP の契約を追記した |
+
+iOS の差異は [Apple TN3179](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy)、
+Android の Require 設定は [Unity Android Player Settings](https://docs.unity3d.com/Manual/class-PlayerSettingsAndroid.html)、
+USB 転送の表記は [libusbmuxd の iproxy](https://github.com/libimobiledevice/libusbmuxd/blob/master/tools/iproxy.c) を確認した。
+接続元のプレフィックス取得不能を隠して任意の /64 と推測することは、同一 LAN の制限を広げるため行わない。
+
+### 追加・変更ファイル一覧
+
+新規 Runtime 5 ファイル、EditMode 1 ファイルにそれぞれ `.cs.meta`、新規フォルダ 2 個に `.meta` を追加した。
+既存の `.meta` と asmdef は変更していない。
+
+| ファイル | 種別 |
+|---|---|
+| `Runtime/Gateway/Http.meta` | 追加 |
+| `Runtime/Gateway/Http/AiHttpServer.cs` | 追加 |
+| `Runtime/Gateway/Http/AiHttpServer.cs.meta` | 追加 |
+| `Runtime/Gateway/Http/AiHttpListener.cs` | 追加 |
+| `Runtime/Gateway/Http/AiHttpListener.cs.meta` | 追加 |
+| `Runtime/Gateway/Http/AiHttpExchange.cs` | 追加 |
+| `Runtime/Gateway/Http/AiHttpExchange.cs.meta` | 追加 |
+| `Runtime/Gateway/Http/AiHttpRequestParser.cs` | 追加 |
+| `Runtime/Gateway/Http/AiHttpRequestParser.cs.meta` | 追加 |
+| `Runtime/Gateway/Http/AiHttpConfiguration.cs` | 追加 |
+| `Runtime/Gateway/Http/AiHttpConfiguration.cs.meta` | 追加 |
+| `Runtime/Core/UniTestifySettings.cs` | 変更 |
+| `Runtime/Resources/UniTestifySettings.asset` | 変更 |
+| `Tests/EditMode/Runtime/Gateway/Http.meta` | 追加 |
+| `Tests/EditMode/Runtime/Gateway/Http/AiHttpRequestParserTest.cs` | 追加 |
+| `Tests/EditMode/Runtime/Gateway/Http/AiHttpRequestParserTest.cs.meta` | 追加 |
+| `Tools/ai_client.py` | 変更 |
+| `Tools/test_ai_client.py` | 変更 |
+| `CLAUDE.md` | 変更（構成概要） |
+| `docs/getting-started.md` | 変更 |
+| `docs/ops-reference.md` | 変更 |
+| `docs/architecture.md` | 変更 |
+| `docs/design/design-unilab-ai-12-ai-gateway.md` | 変更 |
+| `docs/implementation.md` | 変更 |
+
+### 追加したテスト名（未実行）
+
+`AiHttpRequestParserTest.cs` に 12 メソッド／TestCase 展開で 65 ケースを追加した。
+
+| テスト名 | 対象 |
+|---|---|
+| `BodyRestoresMailboxRequest` | 日本語と内側の JSON 文字列を既存要求型へ復元 |
+| `MissingArgumentsRemainOptional` | args 省略の互換性 |
+| `InvalidBodyIsRejected` | 空・破損・非オブジェクト JSON |
+| `BearerTokenRequiresExactMatch` | 正しいトークン、未指定、方式違い、大小文字・前後空白の差異 |
+| `LoopbackPolicyRejectsRemoteAddresses` | IPv4 / IPv6 / IPv4 射影のループバック判断 |
+| `MissingAddressIsRejected` | 接続元不明の拒否 |
+| `LanPermissionRequiresSameSubnet` | 別サブネット・IPv6 スコープ・不正プレフィックスの拒否 |
+| `SubnetMaskRequiresContiguousNetworkBits` | 実マスクの長さへの変換と非連続ビットの拒否 |
+| `MissingConfigurationUsesDisabledDefaults` | 無効・7910・LAN 不許可・空トークン生成の既定値 |
+| `OverridePreservesUnspecifiedBuildSettings` | 部分上書き・ポート 0・元アセットの維持 |
+| `OverrideReplacesAllHttpFields` | 全設定の上書きと明示的な無効化 |
+| `InvalidConfigurationIsRejected` | JSON の型違い・ポート範囲外・ヘッダー不適合トークン |
+
+`Tools/test_ai_client.py` に以下の 4 メソッドを追加した。実ネットワークは開かず、HTTP 接続を差し替える。
+既存 file 経路のテストと期待値は変更していない。
+
+- `test_http_request_preserves_protocol_and_formatted_output`
+- `test_http_authentication_error_preserves_server_response`
+- `test_http_missing_configuration_is_rejected_before_connecting`
+- `test_http_redirect_is_not_followed`
+
+### 静的確認
+
+- 参照するプロジェクト型と namespace を grep で照合した。Unity / .NET の型はローカルの API 定義・
+  同梱アセンブリのメタデータと IL も読み取り、`HttpListener`、`NetworkInterface`、`PrefixLength`、
+  `ConcurrentQueue`、`TaskCompletionSource`、`RunContinuationsAsynchronously` を確認した。
+  実装コードや Unity の実行は行っていない。
+- Runtime の `#if UNITY_EDITOR || DEVELOPMENT_BUILD`、public / internal の summary、
+  新規 `.meta` 8 件の存在と GUID 重複なしを照合した。
+- lifecycle / コンポーネント API の grep では、仕様指定の `AiHttpServer.Update` と起動時一度の
+  `AddComponent<AiHttpServer>` が該当する。観測基盤のドライバとして使用し、毎フレームの探索はない。
+  新規ファイルにゲーム用ライブラリ依存・ファイルスコープ namespace・可変 static はない。
+- Python 2 ファイルは `ast.parse` で構文解析のみ実施した。クライアント・テストの呼び出しはしていない。
+- `architecture.md` の Runtime / EditMode 構成表を実ファイル数と照合した。
+  `Runtime/Gateway/Http/` は 5、対応テストは 1、EditMode 全体は 32→33（Runtime 32 / Editor 1）。
+- **Unity 起動・インポート・コンパイル・ビルド・C# / Python のテスト実行は行っていない。**
+
+### 未実行の確認事項・依頼者の受け入れ確認
+
+1. TestProject または利用側でコンパイルし、新規 EditMode 65 ケース、既存テスト、Python の
+   `Tools/test_ai_client.py` を実行する。新規 `.meta` と設定アセットの 4 フィールドを確認する。
+2. Android Development Build の Internet Access を Require にし、アセットだけで HTTP を起動する。
+   トークンを設定して `adb forward tcp:7910 tcp:7910`、`agent.begin` の後、
+   `ai_client.py --transport http --url http://127.0.0.1:7910 agent.observe` が
+   Editor と同じ形式・同じ画面状態の観測本文を返すことを確認する。実機確認が必要。
+3. PC Standalone でも直接ループバック接続で同じ観測を取得し、`agent.act` の非同期処理と
+   連続要求の順序・応答の対応を確認する。Android / iOS では対象の Mono / IL2CPP ビルドで確認する。
+4. iOS で `iproxy 7910 7910` の USB 接続、`httpAllowLan:true` の同一 Wi-Fi IPv4 接続を確認する。
+   既定 false の LAN 拒否 403、不一致・未指定トークンの 401、許可済み同一 LAN の正常応答を確認する。
+   プライバシー確認の表示有無は OS の仕様とアプリ内の他のネットワーク利用も含めて確認する。
+5. 外部 `http.enabled` の部分上書き・無効化、ポート 0 の `http.port.json`、空トークンの生成、
+   固定ポートの競合、破損設定・不正本文・未知パス・メソッド違いを確認する。
+6. フレーム待ちのあるコマンド中のシーン遷移・Play 停止・サーバー無効化・アプリ終了で、
+   コルーチンの監視・応答待ち・ソケットが解放されることを確認する。
+   クライアント切断後も次の要求を処理でき、再起動後に古い接続情報を残さないことを確認する。
+7. 既定 file 経路の要求・出力が従来どおりで、通常の非 Development Build には HTTP 入口が含まれないことを確認する。
+
+### 提案（このランでは実装しない）
+
+1. 複数クライアント向けに広げる場合は、本文サイズと読取待ち時間の上限を別タスクで決めるべき。
+   理由は T9 の一手ずつの通信では、一つのクライアントが本文を送り終えない間は後続も待つため。
+2. IPv6 LAN 接続を Unity 同梱 Mono でも保証する場合は、OS ごとのサブネット情報取得を別タスクで扱うべき。
+   理由は .NET の `PrefixLength` が未実装で、任意のマスクを仮定すると接続元制限を正しく保てないため。

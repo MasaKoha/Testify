@@ -14,3 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   autorunScenarioPath: 
   autorunDelaySeconds: 2
+  httpEnabled: 0
+  httpPort: 7910
+  httpToken: 
+  httpAllowLan: 0

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unity 内蔵メールボックスを標準ライブラリだけで呼び出す。
+"""Unity 内蔵メールボックスまたは HTTP 入口を標準ライブラリだけで呼び出す。
 
 自由行動の開始例:
     ai_client.py agent.begin '{"goal":{"freePlay":true,"maxSteps":5000,"maxSeconds":14400}}'
@@ -10,19 +10,34 @@
     ai_client.py scenario.status
 同じフレームの観測と撮影:
     ai_client.py agent.observe '{"capture":"turn_01"}'
+実機への HTTP 接続（環境変数 TESTIFY_HTTP_TOKEN にトークンを設定）:
+    ai_client.py --transport http --url http://127.0.0.1:7910 agent.observe
 """
 
 import argparse
+from http.client import HTTPException
+from http import HTTPStatus
 import json
 import os
 from pathlib import Path
 import sys
 import time
 import uuid
+from urllib.error import HTTPError
+from urllib.parse import urlsplit
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 DEFAULT_TIMEOUT_SECONDS = 60.0
 POLL_INTERVAL_SECONDS = 0.05
 MAILBOX_RELATIVE_PATH = Path("DebugOutput") / "agent-mailbox"
+HTTP_TOKEN_ENVIRONMENT = "TESTIFY_HTTP_TOKEN"
+
+
+class RejectHttpRedirects(HTTPRedirectHandler):
+    """認証先が別 URL へ変わっても Bearer トークンを転送しない。"""
+
+    def redirect_request(self, request, response, code, message, headers, new_url):
+        return None
 
 
 def resolve_mailbox(explicit_directory):
@@ -80,9 +95,44 @@ def request(mailbox, operation, arguments, timeout):
         time.sleep(min(POLL_INTERVAL_SECONDS, remaining))
 
 
+def request_http(url, operation, arguments, timeout):
+    """メールボックスと同じ要求を POST し、HTTP エラーの共通応答も呼び出し元へ返す。"""
+    if not url:
+        raise ValueError("--transport http では --url http://HOST:PORT を指定してください。")
+    parsed_url = urlsplit(url)
+    if (parsed_url.scheme != "http" or not parsed_url.hostname or parsed_url.username is not None
+            or parsed_url.password is not None or parsed_url.path not in ("", "/")
+            or parsed_url.query or parsed_url.fragment):
+        raise ValueError("--url は http://HOST:PORT の形式で指定してください。")
+    token = os.environ.get(HTTP_TOKEN_ENVIRONMENT, "")
+    if not token or any(character < "!" or character > "~" for character in token):
+        raise ValueError(f"{HTTP_TOKEN_ENVIRONMENT} に HTTP 入口のトークンを設定してください。")
+    payload = {"op": operation, "args": json.dumps(arguments, ensure_ascii=False, allow_nan=False)}
+    encoded_payload = json.dumps(payload, ensure_ascii=False, allow_nan=False).encode("utf-8")
+    http_request = Request(url.rstrip("/") + "/op", data=encoded_payload, method="POST", headers={
+        "Content-Type": "application/json; charset=utf-8",
+        "Authorization": f"Bearer {token}",
+    })
+    # 実機への直結用 URL を使い、環境のプロキシやリダイレクトへ認証情報を渡さない。
+    opener = build_opener(ProxyHandler({}), RejectHttpRedirects())
+    try:
+        connection = opener.open(http_request, timeout=timeout)
+    except HTTPError as exception:
+        connection = exception
+    with connection:
+        response = json.loads(connection.read().decode("utf-8-sig"), parse_constant=reject_nonfinite)
+        if not isinstance(response, dict) or not isinstance(response.get("ok"), bool):
+            raise ValueError("HTTP の応答形式が不正です。")
+        if connection.getcode() != HTTPStatus.OK:
+            response["ok"] = False
+        return response
+
+
 def main(argv=None):
     """メタデータを先頭の一行 JSON、観測を続く本文として表示する。"""
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--transport", choices=("file", "http"), default="file")
+    parser.add_argument("--url", help="HTTP 入口のベース URL（http://HOST:PORT）")
     parser.add_argument("--mailbox", metavar="DIR")
     parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT_SECONDS)
     parser.add_argument("op")
@@ -94,13 +144,16 @@ def main(argv=None):
         arguments = json.loads(options.args, parse_constant=reject_nonfinite)
         if not isinstance(arguments, dict):
             raise ValueError("引数は JSON オブジェクトで指定してください。")
-        response = request(resolve_mailbox(options.mailbox), options.op, arguments, options.timeout)
+        if options.transport == "http":
+            response = request_http(options.url, options.op, arguments, options.timeout)
+        else:
+            response = request(resolve_mailbox(options.mailbox), options.op, arguments, options.timeout)
         text = response.pop("text", "")
         print(json.dumps(response, ensure_ascii=False))
         if text:
             print(text)
         return 0 if response["ok"] else 1
-    except (OSError, ValueError, TimeoutError) as exception:
+    except (OSError, ValueError, TimeoutError, HTTPException) as exception:
         print(json.dumps({"ok": False, "op": options.op, "error": str(exception)}, ensure_ascii=False))
         return 1
 
