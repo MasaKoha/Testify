@@ -90,10 +90,36 @@ namespace UniTestify
 
         private static AgentAction ReadAction(string json)
         {
+            ValidateActionKeys(AiJsonObject.Parse(json));
             var action = new AgentAction();
             JsonUtility.FromJsonOverwrite(json, action);
             AiCommandArguments.ValidateDuration(action.timeoutSeconds, nameof(action.timeoutSeconds), true);
             return action;
+        }
+
+        private static void ValidateActionKeys(Dictionary<string, string> members)
+        {
+            if (members.Count == 0)
+            {
+                return;
+            }
+
+            // 語彙の二重管理を避け、expect や timeoutSeconds だけの要求も維持する。
+            foreach (var key in members.Keys)
+            {
+                if (typeof(AgentAction).GetField(key) != null)
+                {
+                    return;
+                }
+            }
+
+            var message = $"行動に解釈できるキーがありません（受け取ったキー: {string.Join(", ", members.Keys)}）。\n";
+            if (members.ContainsKey("kind") || members.ContainsKey("target"))
+            {
+                message += "kind / target は expect の語彙です。";
+            }
+
+            throw new ArgumentException(message + "行動はフィールド名で指定します（例: {\"click\": \"対象名\"}）。");
         }
     }
 }
