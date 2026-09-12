@@ -268,6 +268,16 @@ CLI の撮影は従来どおり PNG の生成完了を待たず、`width=height=
 
 ## 行動（`action`）の語彙
 
+**行動はフィールド名で指定する。** `action` と `steps[]` の各要素では、クリックを
+`{"click":"SettingsButton"}` と書く。`{"kind":"click","target":"SettingsButton"}` は誤り。
+**`kind` / `target` は `expect` の語彙**であり、行動の種類・対象を指定するキーには使えない。
+
+行動オブジェクトにキーが 1 個以上あり、`AgentAction` の実在フィールド名と一致するキーが 0 個なら、
+`ok:false` と `error` を返す。`error` には受け取ったキーと正しい記述例を含め、`kind` または `target` が
+あれば `expect` の語彙であることも案内する。正しいキーと未知キーの混在は従来どおり受け入れる。
+空の `{}`、`expect` / `timeoutSeconds` だけの行動は従来どおり扱う。
+`settleFrames` は `agent.begin` の `options` またはシナリオのステップに指定する項目で、行動のフィールドではない。
+
 | キー | 例 | 意味 |
 |---|---|---|
 | `submit` | `"NewGameButton"` / `"label:剛 攻撃のルーン"` / `"Panel/Row0"` | UI の決定。名前・パス断片・ラベル部分一致 |
@@ -379,6 +389,12 @@ Canvas activeInHierarchy=true
 ## 事後条件（`expect`）の語彙
 
 `{"kind": "...", "value": "...", "target": "...", "scope": "...", "key": "...", "op": "..."}` の配列。シナリオの `expect` と同じ。
+
+行動のフィールド名とは語彙が異なる。例えば、クリック後のフォーカス確認は次のように指定する。
+
+```json
+{"action":{"click":"SettingsButton"},"expect":[{"kind":"focused","target":"SettingsButton"}]}
+```
 
 | kind | 判定 |
 |---|---|
