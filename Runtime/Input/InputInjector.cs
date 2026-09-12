@@ -23,6 +23,10 @@ namespace UniTestify
             "Game View のフォーカス取得を試みましたが、1 フレーム待っても非フォーカスのため、ポインタ入力を送信しませんでした。Unity アプリ自体が背面にある可能性があります。Unity を前面にして Game View にフォーカスを合わせてから再実行してください。";
 
 #if ENABLE_INPUT_SYSTEM
+        private const string GamepadDeviceName = "UniLabAI Gamepad";
+        private const string KeyboardDeviceName = "UniLabAI Keyboard";
+        private const string MouseDeviceName = "UniLabAI Mouse";
+        private const string TouchscreenDeviceName = "UniLabAI Touchscreen";
         private const float DefaultClickFrameDelaySeconds = 0.0f;
 
         private static readonly HashSet<Key> PressedKeys = new HashSet<Key>();
@@ -600,34 +604,69 @@ namespace UniTestify
 
         private static Gamepad EnsureGamepad()
         {
-            if (_gamepad != null)
+            if (_gamepad != null && _gamepad.added)
             {
                 return _gamepad;
             }
 
-            _gamepad = InputSystem.AddDevice<Gamepad>("UniLabAI Gamepad");
+            // perf: ドメインリロード後に残ったデバイスを再利用し、有効な参照がないときだけ探索する。
+            foreach (var device in InputSystem.devices)
+            {
+                if (device is Gamepad gamepad && gamepad.name == GamepadDeviceName && gamepad.added)
+                {
+                    _gamepad = gamepad;
+                    return _gamepad;
+                }
+            }
+
+            _gamepad = InputSystem.AddDevice<Gamepad>(GamepadDeviceName);
             return _gamepad;
         }
 
         private static Keyboard EnsureKeyboard()
         {
-            if (_keyboard != null)
+            if (_keyboard != null && _keyboard.added)
             {
                 return _keyboard;
             }
 
-            _keyboard = InputSystem.AddDevice<Keyboard>("UniLabAI Keyboard");
+            // perf: ドメインリロード後に残ったデバイスを再利用し、有効な参照がないときだけ探索する。
+            foreach (var device in InputSystem.devices)
+            {
+                if (device is Keyboard keyboard && keyboard.name == KeyboardDeviceName && keyboard.added)
+                {
+                    _keyboard = keyboard;
+                    return _keyboard;
+                }
+            }
+
+            _keyboard = InputSystem.AddDevice<Keyboard>(KeyboardDeviceName);
             return _keyboard;
         }
 
         private static Mouse EnsureMouse()
         {
-            if (_mouse != null)
+            if (_mouse != null && _mouse.added)
             {
                 return _mouse;
             }
 
-            _mouse = InputSystem.AddDevice<Mouse>("UniLabAI Mouse");
+            _mouse = null;
+            // perf: ドメインリロード後に残ったデバイスを再利用し、有効な参照がないときだけ探索する。
+            foreach (var device in InputSystem.devices)
+            {
+                if (device is Mouse mouse && mouse.name == MouseDeviceName && mouse.added)
+                {
+                    _mouse = mouse;
+                    break;
+                }
+            }
+
+            if (_mouse == null)
+            {
+                _mouse = InputSystem.AddDevice<Mouse>(MouseDeviceName);
+            }
+
             _mouseState.position = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
             InputSystem.QueueStateEvent(_mouse, _mouseState);
             InputSystem.Update();
@@ -636,12 +675,22 @@ namespace UniTestify
 
         private static Touchscreen EnsureTouchscreen()
         {
-            if (_touchscreen != null)
+            if (_touchscreen != null && _touchscreen.added)
             {
                 return _touchscreen;
             }
 
-            _touchscreen = InputSystem.AddDevice<Touchscreen>("UniLabAI Touchscreen");
+            // perf: ドメインリロード後に残ったデバイスを再利用し、有効な参照がないときだけ探索する。
+            foreach (var device in InputSystem.devices)
+            {
+                if (device is Touchscreen touchscreen && touchscreen.name == TouchscreenDeviceName && touchscreen.added)
+                {
+                    _touchscreen = touchscreen;
+                    return _touchscreen;
+                }
+            }
+
+            _touchscreen = InputSystem.AddDevice<Touchscreen>(TouchscreenDeviceName);
             return _touchscreen;
         }
 
