@@ -233,7 +233,19 @@ namespace UniTestify
 
         private static AiCommandResponse ActImmediately(AiCommandContext context)
         {
-            return ActImmediately(context, action => ConvertResult(context.Operation, AgentSessionCommands.Act(JsonUtility.ToJson(action))), UiSnapshot.Capture);
+            return ActImmediately(context, action => ExecuteActionImmediately(context.Operation, action), UiSnapshot.Capture);
+        }
+
+        private static AiCommandResponse ExecuteActionImmediately(string operation, AgentAction action)
+        {
+            if (AgentSessionCommands.HasSession && InputInjector.IsSupported
+                && AgentActionExecutor.UsesPointerInput(action) && !InputInjector.IsPointerInputAvailable)
+            {
+                // 同期の一括実行でも、フォーカス反映前に後続の入力だけが送られないよう拒否として返す。
+                return ConvertResult(operation, AgentSessionCommands.RejectAction(action, InputInjector.RequestPointerInputFocus()));
+            }
+
+            return ConvertResult(operation, AgentSessionCommands.Act(JsonUtility.ToJson(action)));
         }
 
         /// <summary>同期の一括実行を観測・入力の差し替え可能な経路で検証します。</summary>
@@ -335,6 +347,27 @@ namespace UniTestify
 
             var waitedMilliseconds = anchorWaitedMilliseconds
                 + (string.IsNullOrEmpty(targetSpecification) ? 0 : (int)stopwatch.ElapsedMilliseconds);
+            if (InputInjector.IsSupported && AgentActionExecutor.UsesPointerInput(action))
+            {
+                var failureMessage = string.Empty;
+                using (var recovery = InputInjector.EnsurePointerInputFocusAsync(message => failureMessage = message))
+                {
+                    while (recovery.MoveNext())
+                    {
+                        yield return recovery.Current;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(failureMessage))
+                {
+                    var failure = ConvertResult(context.Operation, AgentSessionCommands.RejectAction(action, failureMessage));
+                    failure.ready = ready;
+                    failure.waitedMs = waitedMilliseconds;
+                    completed(failure);
+                    yield break;
+                }
+            }
+
             using (var settle = new AiSettleWait(context.Arguments))
             {
                 var previousStepCount = AgentSessionCommands.RecordedStepCount;

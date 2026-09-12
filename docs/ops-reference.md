@@ -9,6 +9,11 @@ Runtime の op は `AiCommandDispatcher` が実装し、メールボックス（
 
 Play 停止中も使う [Editor メールボックス](#editor-メールボックス) は `EditorControlMailbox` が処理する独立した入口。
 
+**AI がゲームを操作したあとは必ず Play を止める。Play を残すのは、人に直接触ってもらうときだけ。**
+Play の放置は CPU を占有し、後続のコンパイルやテストが弾かれる原因になる。
+Editor メールボックスの `stop` を送り、`status` で `isPlaying=False` になったことまで確認する。
+`agent.end` はセッションの終了であり、Play の停止にはならない。
+
 ## 要求・応答の形
 
 要求（`req-<id>.json`）:
@@ -290,11 +295,34 @@ CLI の撮影は従来どおり PNG の生成完了を待たず、`width=height=
 Editor の既定の Input System 設定では、非フォーカス時にデバイスの state が更新されても、
 `InputSystemUIInputModule` のアクションへポインタ入力が伝播せず、UI に届かない。
 
-送出前に `InputInjector.IsPointerInputAvailable` を検査する。Editor では `Application.isFocused` を使い、
-`false` なら入力を送信せず、原因と再実行手順を返す。**Unity を前面にして Game View にフォーカスを合わせてから再実行すること。**
-`agent.act` は既存の応答本文（`text` 内の `message`）と行動ログの `message` に理由を残す。
-最上位の `ok` と `message` は既存の扱いのため、`ok:true` だけで入力が届いたと判断しないこと。
+メールボックス・HTTP の `agent.act` とシナリオは、送出前に `InputInjector.IsPointerInputAvailable` を検査する。
+Editor では `Application.isFocused` を使い、
+`false` なら `AiPlayModeViewFocus.TryFocus("game")` で Game View のフォーカス取得を一度要求し、
+**1 フレーム待ってから再判定する**。復旧できれば同じ要求の入力を送信する。
+`Focus()` の呼び出し成功だけでは入力可能と判定しない。再判定でも `false` なら入力を送信せず、
+自動復旧を試みたこと・失敗の原因として考えられること・再実行手順を返す。
+**Unity を前面にして Game View にフォーカスを合わせてから再実行すること。**
+
+実測した復旧範囲は次のとおり。
+
+| 状況 | `EditorWindow.Focus()` を呼んだ結果 | 対処 |
+|---|---|---|
+| Unity アプリが背面で、他アプリが前面 | 復旧しない。`Application.isFocused=False`、`focusedWindow=null` のまま | OS レベルで Unity を前面にする。UniTestify の外で行う |
+| Unity は前面で、Console など Game View 以外がアクティブ | 復旧する。`False` / `ConsoleWindow` → `True` / `GameView` | UniTestify が自動で Game View のフォーカスを取り戻して入力する |
+
+メールボックス・HTTP の `agent.act` は復旧失敗時に `ok:false` を返し、最上位の `message`、
+既存の応答本文（`text` 内の `message`）と行動ログの `message` に理由を残す。一括指定の後続の手も実行しない。
 シナリオは `failures` に `kind:"input"` と行動種別・理由を記録し、ステップを `fail` にする。`allowNoChange:true` でもこの失敗は許容しない。
+
+**同期 CLI の `agent.act` は、非フォーカス時にフォーカス取得を要求するが、入力は送らない。**
+同じ呼び出し内で 1 フレーム後の反映を確認できないため、次のフレーム以降に再実行するか、
+復旧を待ってそのまま送信するメールボックス・HTTP を使う。
+同期 CLI も `ok:false` と `message`、`text` 内と行動ログの `message` に未送信と再実行手順を残し、
+一括指定の後続の手を実行しない。
+
+`InputInjector` のポインタ API を直接呼ぶ場合も、送出前に同じ復旧を行う。
+`PointerMove` / `Scroll` は非フォーカス時だけドライバ上のコルーチンへ移し、
+それ以外は入力コルーチンの先頭で待つ。直接呼び出しの復旧失敗は入力を送らず Unity の警告ログに残す。
 
 **キーボード・ゲームパッド系の `press` / `hold` / `key` / `move` / `stick` / `text` と `submit` は、このフォーカス検査を受けない。**
 `scrollTo` と待機だけの行動も対象外。実機の Development Build では同プロパティは常に `true` で、この Editor 固有の検査では止めない。

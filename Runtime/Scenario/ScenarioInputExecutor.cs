@@ -96,12 +96,22 @@ namespace UniTestify
                 yield break;
             }
 
-            if (HasPointerInputAction(step) && !InputInjector.IsPointerInputAvailable)
+            if (HasPointerInputAction(step))
             {
-                addFailure("input", GetInputKind(step), string.Empty,
-                    "Game View が非フォーカスのため、ポインタ入力は UI に届かず、入力を送信しませんでした。Unity を前面にして Game View にフォーカスを合わせてから再実行してください。",
-                    string.Empty);
-                yield break;
+                var failureMessage = string.Empty;
+                using (var recovery = InputInjector.EnsurePointerInputFocusAsync(message => failureMessage = message))
+                {
+                    while (recovery.MoveNext())
+                    {
+                        yield return recovery.Current;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(failureMessage))
+                {
+                    addFailure("input", GetInputKind(step), string.Empty, failureMessage, string.Empty);
+                    yield break;
+                }
             }
 
             if (!string.IsNullOrEmpty(step.pointerMove))

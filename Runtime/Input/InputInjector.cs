@@ -16,6 +16,12 @@ namespace UniTestify
     /// </summary>
     public static class InputInjector
     {
+        private const string PointerInputView = "game";
+
+        /// <summary>自動復旧後も入力を届けられない場合に、原因と次の操作を同じ文面で伝えます。</summary>
+        private const string PointerInputFocusFailureMessage =
+            "Game View のフォーカス取得を試みましたが、1 フレーム待っても非フォーカスのため、ポインタ入力を送信しませんでした。Unity アプリ自体が背面にある可能性があります。Unity を前面にして Game View にフォーカスを合わせてから再実行してください。";
+
 #if ENABLE_INPUT_SYSTEM
         private const float DefaultClickFrameDelaySeconds = 0.0f;
 
@@ -59,6 +65,29 @@ namespace UniTestify
                 return true;
 #endif
             }
+        }
+
+        /// <summary>非フォーカス時だけ復旧を試み、フレーム反映後の失敗理由を入力の呼び出し元へ返します。</summary>
+        internal static IEnumerator<object> EnsurePointerInputFocusAsync(System.Action<string> completed)
+        {
+            if (IsPointerInputAvailable)
+            {
+                completed(string.Empty);
+                yield break;
+            }
+
+            AiPlayModeViewFocus.TryFocus(PointerInputView);
+            // Focus の戻り値は要求の成否であり、Input System が入力を受け取れる状態とは限らない。
+            // perf: フォーカス反映は要求時のコルーチンで 1 フレームだけ待ち、常駐処理を増やさない。
+            yield return null;
+            completed(IsPointerInputAvailable ? string.Empty : PointerInputFocusFailureMessage);
+        }
+
+        /// <summary>フレームを待てない同期呼び出しでもフォーカスを要求し、未送信であることを伝えます。</summary>
+        internal static string RequestPointerInputFocus()
+        {
+            AiPlayModeViewFocus.TryFocus(PointerInputView);
+            return "Game View が非フォーカスのため、フォーカス取得を要求しました。同期呼び出しでは 1 フレーム後の反映を確認できないため、ポインタ入力を送信していません。次のフレーム以降に再実行するか、復旧を待って入力するメールボックス・HTTP を利用してください。非フォーカスが続く場合は Unity アプリ自体が背面にある可能性があるため、Unity を前面にして Game View にフォーカスを合わせてください。";
         }
 
         /// <summary>
@@ -177,17 +206,19 @@ namespace UniTestify
 
         /// <summary>
         /// ポインタ移動を先に行うことで、hover 解決や currentMouse 依存の UI を自然な順で通すための入力です。
+        /// 非フォーカス時は入力の欠落を防ぐため、復旧後のフレームで送ります。
         /// </summary>
         public static void PointerMove(Vector2 screenPosition)
         {
 #if ENABLE_INPUT_SYSTEM
-            var mouse = EnsureMouse();
-            var delta = screenPosition - _mouseState.position;
-            _mouseState.position = screenPosition;
-            _mouseState.delta = delta;
-            InputSystem.QueueStateEvent(mouse, _mouseState);
-            InputSystem.Update();
-            _mouseState.delta = Vector2.zero;
+            if (!IsPointerInputAvailable)
+            {
+                EnsureDriver();
+                _driver.StartCoroutine(PointerMoveCoroutine(screenPosition));
+                return;
+            }
+
+            SendPointerMove(screenPosition);
 #endif
         }
 
@@ -208,15 +239,24 @@ namespace UniTestify
         public static IEnumerator Drag(Vector2 from, Vector2 to, float seconds, PointerButton button = PointerButton.Left)
         {
 #if ENABLE_INPUT_SYSTEM
+            if (!IsPointerInputAvailable)
+            {
+                yield return EnsurePointerInputFocusAsync(ReportPointerInputFocusFailure);
+                if (!IsPointerInputAvailable)
+                {
+                    yield break;
+                }
+            }
+
             var mouse = EnsureMouse();
-            PointerMove(from);
+            SendPointerMove(from);
             SetMouseButton(button, true);
             InputSystem.QueueStateEvent(mouse, _mouseState);
             InputSystem.Update();
 
             if (seconds <= 0.0f)
             {
-                PointerMove(to);
+                SendPointerMove(to);
             }
             else
             {
@@ -225,7 +265,7 @@ namespace UniTestify
                 {
                     var elapsedSeconds = Time.realtimeSinceStartup - startRealtime;
                     var normalized = Mathf.Clamp01(elapsedSeconds / seconds);
-                    PointerMove(Vector2.Lerp(from, to, normalized));
+                    SendPointerMove(Vector2.Lerp(from, to, normalized));
                     if (normalized >= 1.0f)
                     {
                         break;
@@ -245,16 +285,19 @@ namespace UniTestify
 
         /// <summary>
         /// スクロールは位置と同時に送ることで、ポインタ位置依存 UI でも対象を外さないための入力です。
+        /// 非フォーカス時は入力の欠落を防ぐため、復旧後のフレームで送ります。
         /// </summary>
         public static void Scroll(Vector2 screenPosition, float amount)
         {
 #if ENABLE_INPUT_SYSTEM
-            var mouse = EnsureMouse();
-            PointerMove(screenPosition);
-            _mouseState.scroll = new Vector2(0.0f, amount);
-            InputSystem.QueueStateEvent(mouse, _mouseState);
-            InputSystem.Update();
-            _mouseState.scroll = Vector2.zero;
+            if (!IsPointerInputAvailable)
+            {
+                EnsureDriver();
+                _driver.StartCoroutine(ScrollCoroutine(screenPosition, amount));
+                return;
+            }
+
+            SendScroll(screenPosition, amount);
 #endif
         }
 
@@ -275,6 +318,15 @@ namespace UniTestify
         public static IEnumerator Swipe(Vector2 from, Vector2 to, float seconds)
         {
 #if ENABLE_INPUT_SYSTEM
+            if (!IsPointerInputAvailable)
+            {
+                yield return EnsurePointerInputFocusAsync(ReportPointerInputFocusFailure);
+                if (!IsPointerInputAvailable)
+                {
+                    yield break;
+                }
+            }
+
             var touchscreen = EnsureTouchscreen();
             var startTime = Time.realtimeSinceStartupAsDouble;
             var previousPosition = from;
@@ -311,6 +363,15 @@ namespace UniTestify
         public static IEnumerator Pinch(Vector2 center, float fromDistance, float toDistance, float seconds)
         {
 #if ENABLE_INPUT_SYSTEM
+            if (!IsPointerInputAvailable)
+            {
+                yield return EnsurePointerInputFocusAsync(ReportPointerInputFocusFailure);
+                if (!IsPointerInputAvailable)
+                {
+                    yield break;
+                }
+            }
+
             var touchscreen = EnsureTouchscreen();
             var startTime = Time.realtimeSinceStartupAsDouble;
             var currentFromDistance = fromDistance;
@@ -421,8 +482,17 @@ namespace UniTestify
 
         private static IEnumerator ClickCoroutine(Vector2 screenPosition, PointerButton button)
         {
+            if (!IsPointerInputAvailable)
+            {
+                yield return EnsurePointerInputFocusAsync(ReportPointerInputFocusFailure);
+                if (!IsPointerInputAvailable)
+                {
+                    yield break;
+                }
+            }
+
             var mouse = EnsureMouse();
-            PointerMove(screenPosition);
+            SendPointerMove(screenPosition);
             SetMouseButton(button, true);
             InputSystem.QueueStateEvent(mouse, _mouseState);
             InputSystem.Update();
@@ -442,11 +512,68 @@ namespace UniTestify
 
         private static IEnumerator TapCoroutine(Vector2 screenPosition)
         {
+            if (!IsPointerInputAvailable)
+            {
+                yield return EnsurePointerInputFocusAsync(ReportPointerInputFocusFailure);
+                if (!IsPointerInputAvailable)
+                {
+                    yield break;
+                }
+            }
+
             var touchscreen = EnsureTouchscreen();
             var startTime = Time.realtimeSinceStartupAsDouble;
             QueueTouchState(touchscreen, 1, TouchPhase.Began, screenPosition, Vector2.zero, startTime, screenPosition);
             yield return null;
             QueueTouchState(touchscreen, 1, TouchPhase.Ended, screenPosition, Vector2.zero, startTime, screenPosition);
+        }
+
+        private static IEnumerator PointerMoveCoroutine(Vector2 screenPosition)
+        {
+            yield return EnsurePointerInputFocusAsync(ReportPointerInputFocusFailure);
+            if (IsPointerInputAvailable)
+            {
+                SendPointerMove(screenPosition);
+            }
+        }
+
+        private static IEnumerator ScrollCoroutine(Vector2 screenPosition, float amount)
+        {
+            yield return EnsurePointerInputFocusAsync(ReportPointerInputFocusFailure);
+            if (IsPointerInputAvailable)
+            {
+                SendScroll(screenPosition, amount);
+            }
+        }
+
+        private static void ReportPointerInputFocusFailure(string message)
+        {
+            if (!string.IsNullOrEmpty(message))
+            {
+                UnityEngine.Debug.LogWarning(message);
+            }
+        }
+
+        private static void SendPointerMove(Vector2 screenPosition)
+        {
+            // perf: ドラッグの毎フレーム送出では、フォーカス復旧用のコルーチンを生成しない。
+            var mouse = EnsureMouse();
+            var delta = screenPosition - _mouseState.position;
+            _mouseState.position = screenPosition;
+            _mouseState.delta = delta;
+            InputSystem.QueueStateEvent(mouse, _mouseState);
+            InputSystem.Update();
+            _mouseState.delta = Vector2.zero;
+        }
+
+        private static void SendScroll(Vector2 screenPosition, float amount)
+        {
+            var mouse = EnsureMouse();
+            SendPointerMove(screenPosition);
+            _mouseState.scroll = new Vector2(0.0f, amount);
+            InputSystem.QueueStateEvent(mouse, _mouseState);
+            InputSystem.Update();
+            _mouseState.scroll = Vector2.zero;
         }
 
         private static WaitForSeconds WaitForSeconds(float seconds)
