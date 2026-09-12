@@ -464,24 +464,22 @@ namespace UniTestify
         {
             var gamepad = EnsureGamepad();
             SetGamepadButton(button, true);
+            // 手動 Update は UI モジュールが読む押下フレームを先に消費するため、通常更新へ任せる。
             InputSystem.QueueStateEvent(gamepad, _gamepadState);
-            InputSystem.Update();
             yield return null;
             SetGamepadButton(button, false);
             InputSystem.QueueStateEvent(gamepad, _gamepadState);
-            InputSystem.Update();
         }
 
         private static IEnumerator KeyCoroutine(Key key)
         {
             var keyboard = EnsureKeyboard();
             PressedKeys.Add(key);
+            // Submit が UI のフレーム処理まで残るよう、押下と解放は通常更新で処理させる。
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(ToPressedKeysArray()));
-            InputSystem.Update();
             yield return null;
             PressedKeys.Remove(key);
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(ToPressedKeysArray()));
-            InputSystem.Update();
         }
 
         private static IEnumerator ClickCoroutine(Vector2 screenPosition, PointerButton button)
