@@ -101,7 +101,7 @@ namespace UniTestify
 
             if (HasPointerInputAction(action) && !InputInjector.IsPointerInputAvailable)
             {
-                return "Game View が非フォーカスのため、ポインタ入力は UI に届かず、入力を送信しませんでした。Unity を前面にして Game View にフォーカスを合わせてから再実行してください。";
+                return InputInjector.RequestPointerInputFocus();
             }
 
             if (!string.IsNullOrEmpty(action.pointerMove))
@@ -196,6 +196,24 @@ namespace UniTestify
                 || !string.IsNullOrEmpty(action.tap)
                 || !string.IsNullOrEmpty(action.swipe)
                 || !string.IsNullOrEmpty(action.pinch);
+        }
+
+        /// <summary>優先される非ポインタ操作に、別フィールドのフォーカス復旧が混入するのを防ぎます。</summary>
+        internal static bool UsesPointerInput(AgentAction action)
+        {
+            switch (GetActionKind(action))
+            {
+                case "pointerMove":
+                case "click":
+                case "drag":
+                case "scroll":
+                case "tap":
+                case "swipe":
+                case "pinch":
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         /// <summary>複数指定時も既存の優先順位で行動種別を確定します。</summary>
